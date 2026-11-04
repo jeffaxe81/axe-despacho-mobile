@@ -90,6 +90,12 @@ export default function App() {
       setUser(null);setTenant(null);setOrgId(null);setAccess(null);
       setLoading(false);setLoaded(true);return;
     }
+    // Identity may have changed in a different tab while this PWA was open.
+    // Hide details before refreshing auth.me / tenant.selection / access.me.
+    setSharing(false);setMustValidate(true);setLastVerifiedAt(null);
+    setRows([]);setSelectedId(null);setTotalOccurrences(0);
+    setSavedRows(null);setSavedUntil(null);setPersistOnDevice(false);
+    setCopyMessage("");
     setLoading(true);setMessage("");
     try {
       // Refuse all cookie-based authentication when the persistent logout fence
