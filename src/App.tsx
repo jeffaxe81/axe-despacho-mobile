@@ -10,6 +10,8 @@ import { useFieldLocation } from "./hooks/useFieldLocation";
 import { useForegroundLifecycle } from "./hooks/useForegroundLifecycle";
 import { AndroidGpsLab } from "./components/AndroidGpsLab";
 import { AndroidFieldDemo } from "./components/AndroidFieldDemo";
+import { ApiError } from "./lib/api";
+import { FIELD_REFRESH_INTERVAL_MS,isFieldSnapshotFresh,shouldQueryLiveAssignments,timeSinceVerification } from "./lib/clientFreshness";
 
 function errorText(cause:unknown):string {
   return cause instanceof Error ? cause.message : "Operação indisponível. Verifique sua conexão.";
@@ -32,6 +34,10 @@ export default function App() {
   const [working,setWorking]=useState(false);
   const [online,setOnline]=useState(networkAvailable);
   const [mustValidate,setMustValidate]=useState(true);
+  const [lastVerifiedAt,setLastVerifiedAt]=useState<number|null>(null);
+  const [clock,setClock]=useState(Date.now());
+  const [refreshSequence,setRefreshSequence]=useState(0);
+  const [totalOccurrences,setTotalOccurrences]=useState(0);
   const [sharing,setSharing]=useState(false);
   const foreground=useForegroundLifecycle(()=>{
     setSharing(false);
@@ -50,7 +56,8 @@ export default function App() {
   const active=activeAssigned(rows);
   const conflict=active.length>1;
   const selected=rows.find(r=>r.incident.id===selectedId) ?? active[0] ?? rows.find(r=>r.incident.status==="despachada") ?? rows[0];
-  const controlsEnabled=Boolean(!native && canField && online && foreground && !mustValidate && !working && !conflict);
+  const recentlyVerified=isFieldSnapshotFresh(lastVerifiedAt,clock);
+  const controlsEnabled=Boolean(!native && canField && online && foreground && recentlyVerified && !mustValidate && !working && !conflict);
   const canSendGPS=Boolean(controlsEnabled && active.length===1 && sharing);
   const location=useFieldLocation({enabled:canSendGPS,teamId:user?.teamId,organizationId:orgId});
   const scope:AgentOfflineScope|null=useMemo(()=>{
@@ -87,23 +94,58 @@ export default function App() {
     return ()=>{window.removeEventListener("offline",offline);window.removeEventListener("online",onlineAgain);};
   },[]);
   useEffect(()=>{
-    if(!canField || !orgId || !online) {
-      setRows([]);setSelectedId(null);setMustValidate(true);return;
+    const interval=window.setInterval(()=>setClock(Date.now()),5000);
+    return()=>window.clearInterval(interval);
+  },[]);
+  useEffect(()=>{
+    if(!shouldQueryLiveAssignments(canField,online,foreground,native) || !orgId){
+      setRows([]);setSelectedId(null);setMustValidate(true);
+      setLastVerifiedAt(null);setTotalOccurrences(0);
+      return;
     }
+    // Suspend polling while a mutation or login/logout transition is pending.
+    if(working)return;
     let cancelled=false;
-    setMustValidate(true);
-    setRows([]);
-    setSavedRows(null);
-    void api.assignments(orgId).then((data:AssignmentResult)=>{
-      if(cancelled)return;
-      setRows(data.rows);
-      setMustValidate(false);
-      setMessage("");
-    }).catch(cause=>{
-      if(!cancelled){setMustValidate(true);setMessage("Não foi possível validar a lista de despacho: "+errorText(cause));}
-    });
-    return()=>{cancelled=true;};
-  },[canField,orgId,online,user?.id]);
+    let inFlight=false;
+    let controller:AbortController|null=null;
+    const poll=async()=>{
+      if(cancelled || inFlight)return;
+      const nextController=new AbortController();
+      controller=nextController;
+      inFlight=true;
+      try {
+        const result:AssignmentResult=await api.assignments(orgId,nextController.signal);
+        if(cancelled || nextController.signal.aborted)return;
+        if(!Array.isArray(result.rows) || !Number.isSafeInteger(result.total) ||
+          result.total<0 || result.rows.some(row=>row?.incident?.assignedTeamId!==user?.teamId)) {
+          throw new ApiError("A central retornou dados fora do escopo da equipe.", "TEAM_SCOPE_MISMATCH");
+        }
+        setRows(result.rows);
+        setTotalOccurrences(result.total);
+        setClock(Date.now());
+        setLastVerifiedAt(Date.now());
+        setMustValidate(false);
+      } catch(cause) {
+        if(cancelled || nextController.signal.aborted)return;
+        setMustValidate(true);setLastVerifiedAt(null);setSharing(false);
+        if(cause instanceof ApiError && ["UNAUTHORIZED","FORBIDDEN","TEAM_SCOPE_MISMATCH"].includes(cause.code)) {
+          setRows([]);setTotalOccurrences(0);
+        }
+        setMessage("Não foi possível validar as atribuições na central: "+errorText(cause));
+      } finally {
+        inFlight=false;
+        if(controller===nextController)controller=null;
+      }
+    };
+    setMustValidate(true);setLastVerifiedAt(null);setSavedRows(null);
+    void poll();
+    const timer=window.setInterval(()=>{if(!document.hidden)void poll();},FIELD_REFRESH_INTERVAL_MS);
+    return()=>{
+      cancelled=true;
+      controller?.abort();
+      window.clearInterval(timer);
+    };
+  },[canField,orgId,online,foreground,native,user?.id,user?.teamId,working,refreshSequence]);
   useEffect(()=>{
     if(savedUntil===null)return;
     const remaining=Math.max(0,savedUntil-Date.now());
@@ -111,17 +153,11 @@ export default function App() {
     return()=>window.clearTimeout(timeout);
   },[savedUntil]);
 
-  async function refresh() {
-    if(!canField || !orgId || !online)return;
-    setMustValidate(true);setWorking(true);
-    try {
-      const fresh=await api.assignments(orgId);
-      setRows(fresh.rows);
-      setMustValidate(false);
-      setMessage("Dados conferidos com a central.");
-    } catch(cause) {
-      setMessage("Consulta não validada: "+errorText(cause));
-    } finally {setWorking(false);}
+  function refresh() {
+    if(!shouldQueryLiveAssignments(canField,online,foreground,native) || !orgId || working)return;
+    setMustValidate(true);setLastVerifiedAt(null);
+    setRefreshSequence(current=>current+1);
+    setMessage("Atualizando as ocorrências com a central...");
   }
   async function signIn(e:React.FormEvent) {
     e.preventDefault();
@@ -136,24 +172,29 @@ export default function App() {
     finally{setWorking(false);}
   }
   async function signOut() {
-    setSharing(false);setMustValidate(true);setWorking(true);
+    setSharing(false);setMustValidate(true);setLastVerifiedAt(null);setWorking(true);
     try{await api.logout();setMessage("Sessão encerrada.");}
     catch{setMessage("Não foi possível confirmar logout remoto. Nenhuma ação local está autorizada.");}
     finally{
       clearFieldSession();
-      setUser(null);setAccess(null);setOrgId(null);setTenant(null);setRows([]);
+      setUser(null);setAccess(null);setOrgId(null);setTenant(null);setRows([]);setTotalOccurrences(0);setLastVerifiedAt(null);
       setPassword("");setSelectedId(null);setSavedRows(null);setSavedUntil(null);
       setPersistOnDevice(false);setWorking(false);
     }
   }
   async function command(fn:()=>Promise<unknown>) {
     if(!controlsEnabled)return;
-    setWorking(true);setMustValidate(true);setMessage("");
+    setWorking(true);setMustValidate(true);setLastVerifiedAt(null);setMessage("");
     try {
       await fn();
       if(!orgId)throw new Error("Organização não selecionada.");
       const updated=await api.assignments(orgId);
+      if(!Array.isArray(updated.rows) || updated.rows.some(row=>row.incident.assignedTeamId!==user?.teamId)) {
+        throw new ApiError("Resposta da equipe inválida.", "TEAM_SCOPE_MISMATCH");
+      }
       setRows(updated.rows);
+      setTotalOccurrences(updated.total);
+      setLastVerifiedAt(Date.now());setClock(Date.now());
       setMustValidate(false);
       setNote("");
       setMessage("Ação registrada. Situação atualizada com dados do servidor.");
@@ -186,7 +227,7 @@ export default function App() {
     setCopyMessage(enabled?"Modo persistente opcional. O resumo expira em 15 minutos.":"Persistência desativada e cópia do dispositivo apagada.");
   }
   function chooseOrg(value:number) {
-    setSharing(false);setMustValidate(true);setRows([]);setSavedRows(null);
+    setSharing(false);setMustValidate(true);setLastVerifiedAt(null);setRows([]);setSavedRows(null);
     setSelectedId(null);setPersistOnDevice(false);setOrgId(value);
   }
   const fieldProblem=loaded && user && !canField && Boolean(tenant && orgId);
@@ -194,7 +235,7 @@ export default function App() {
   return <div className="app-shell">
     <header className="topbar">
       <div className="brand"><span className="brand-mark">AXE</span><span><strong>Despacho Mobile</strong><small>Agente de campo · Android / iOS</small></span></div>
-      <div className="header-actions"><span className={online?"net-online":"net-offline"}>{online?"Conectado":"Sem rede"}</span>{user&&<button className="link-button" onClick={()=>void signOut()} disabled={working}>Sair</button>}</div>
+      <div className="header-actions"><span className={online?"net-online":"net-offline"}>{online?"Rede disponível":"Sem rede"}</span>{user&&<button className="link-button" onClick={()=>void signOut()} disabled={working}>Sair</button>}</div>
     </header>
     <main className="main">
       <div className="hero"><div><span className="eyebrow">Operação em campo</span><h1>Despachos no seu dispositivo</h1><p>Receba ocorrências, atualize a equipe e compartilhe sua localização com a central quando autorizado.</p></div><span className="device-label">{native?"Aplicativo nativo":"Aplicativo web"}</span></div>
@@ -224,10 +265,11 @@ export default function App() {
       </section>}
       {user&&tenant&&tenant.organizations.length===0&&<p className="notice warning">Nenhuma organização autorizada para a conta. Solicite acesso à central.</p>}
       {fieldProblem&&<p className="notice warning">Este aplicativo é exclusivo do agente ativo vinculado a uma equipe e com permissões de consulta/transição. Confirme o perfil e o escopo na central.</p>}
+      {canField&&<p className={"notice "+(recentlyVerified&&!mustValidate?"":"warning")} role="status">{timeSinceVerification(lastVerifiedAt,clock)} · Atualização automática a cada 15 segundos com aplicativo ativo. {totalOccurrences>rows.length?`Exibindo ${rows.length} de ${totalOccurrences} registros. Consulte a central para os demais.`:""}</p>}
       {canField&&<div className="field-grid">
         <section className="panel">
-          <div className="section-head"><div><h2>Ocorrências atribuídas</h2><p>{rows.length} ocorrência(s) da equipe</p></div><button className="secondary" type="button" onClick={()=>void refresh()} disabled={!online||working}>{working?"Atualizando...":"Atualizar"}</button></div>
-          {mustValidate&&<p className="notice warning">Atribuições ainda não validadas. Ações operacionais bloqueadas até confirmação da central.</p>}
+          <div className="section-head"><div><h2>Ocorrências atribuídas</h2><p>{totalOccurrences} ocorrência(s) da equipe</p></div><button className="secondary" type="button" onClick={refresh} disabled={!online||working||!foreground}>{working?"Atualizando...":"Atualizar"}</button></div>
+          {(mustValidate||!recentlyVerified)&&<p className="notice warning">Atribuições sem confirmação recente. Ações e GPS bloqueados até nova consulta à central.</p>}
           {conflict&&<p className="notice danger">Conflito: mais de uma ocorrência ativa para a equipe. Ações e localização bloqueadas.</p>}
           <div className="assignment-list">{rows.map(({incident})=><button key={incident.id} type="button" className={"incident-card "+(selected?.incident.id===incident.id?"selected":"")} onClick={()=>{setSelectedId(incident.id);setNote("");}}>
             <span className="incident-heading"><strong>{incident.code}</strong><span className="priority">{incident.priority}</span></span>
@@ -242,10 +284,10 @@ export default function App() {
               <h3>{selected.incident.category}</h3><p className="detail"><strong>Prioridade:</strong> {selected.incident.priority} · {statusLabels[selected.incident.status]}</p>
               <p className="detail"><strong>Endereço:</strong> {selected.incident.address}</p>
               <p className="detail description">{selected.incident.description}</p>
-              {selected.incident.status==="despachada"&&<div className="button-grid"><button className="primary" disabled={!controlsEnabled} onClick={()=>void command(()=>api.respond(orgId!,selected.incident.id,true))}>Aceitar despacho</button><button className="secondary" disabled={!controlsEnabled} onClick={()=>void command(()=>api.respond(orgId!,selected.incident.id,false))}>Recusar</button></div>}
+              {selected.incident.status==="despachada"&&<div className="button-grid"><button className="primary" disabled={!controlsEnabled} onClick={()=>void command(()=>api.respond(orgId!,selected.incident.id,true))}>Aceitar despacho</button><button className="secondary" disabled={!controlsEnabled} onClick={()=>{if(window.confirm("Confirma recusar o despacho real?"))void command(()=>api.respond(orgId!,selected.incident.id,false));}}>Recusar</button></div>}
               {["aceita","em_atendimento","pausada"].includes(selected.incident.status)&&<>
                 <label className="note-label">Registro da ocorrência<textarea value={note} onChange={e=>setNote(e.target.value)} maxLength={1000} placeholder="Descreva a ação (mínimo 3 caracteres)" rows={3}/></label>
-                <div className="button-grid">{(selected.incident.status==="aceita"?["em_atendimento"]:selected.incident.status==="pausada"?["em_atendimento"]:["pausada",...(access?.permissions.includes("occurrences.close")?["concluida"]:[])]).map(next=><button className={next==="concluida"?"primary":"secondary"} key={next} type="button" disabled={!controlsEnabled||note.trim().length<3} onClick={()=>void command(()=>api.transition(orgId!,selected.incident.id,selected.incident.status,next as IncidentStatus,note,selected.incident.statusRevision))}>{next==="em_atendimento"?"Iniciar/Retomar":next==="pausada"?"Pausar":"Concluir"}</button>)}</div>
+                <div className="button-grid">{(selected.incident.status==="aceita"?["em_atendimento"]:selected.incident.status==="pausada"?["em_atendimento"]:["pausada",...(access?.permissions.includes("occurrences.close")?["concluida"]:[])]).map(next=><button className={next==="concluida"?"primary":"secondary"} key={next} type="button" disabled={!controlsEnabled||note.trim().length<3} onClick={()=>{if(next!=="concluida"||window.confirm("Confirma concluir a ocorrência real?"))void command(()=>api.transition(orgId!,selected.incident.id,selected.incident.status,next as IncidentStatus,note,selected.incident.statusRevision));}}>{next==="em_atendimento"?"Iniciar/Retomar":next==="pausada"?"Pausar":"Concluir"}</button>)}</div>
               </>}
             </>:<p className="empty">Selecione uma ocorrência para consultar detalhes.</p>}
           </section>
