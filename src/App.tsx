@@ -10,6 +10,7 @@ import { useFieldLocation } from "./hooks/useFieldLocation";
 import { useForegroundLifecycle } from "./hooks/useForegroundLifecycle";
 import { AndroidGpsLab } from "./components/AndroidGpsLab";
 import { AndroidFieldDemo } from "./components/AndroidFieldDemo";
+import { PENDING_LOGOUT_KEY,markPendingLogout,hasPendingLogout,clearPendingLogout } from "./lib/sessionFence";
 import { ApiError } from "./lib/api";
 import { FIELD_REFRESH_INTERVAL_MS,isFieldSnapshotFresh,shouldQueryLiveAssignments,timeSinceVerification } from "./lib/clientFreshness";
 
@@ -34,6 +35,10 @@ export default function App() {
   const [working,setWorking]=useState(false);
   const [online,setOnline]=useState(networkAvailable);
   const [mustValidate,setMustValidate]=useState(true);
+  const [logoutPending,setLogoutPending]=useState(()=>{
+    try { return hasPendingLogout(window.localStorage); }
+    catch { return true; } // refuse a session when logout state is unreadable
+  });
   const [lastVerifiedAt,setLastVerifiedAt]=useState<number|null>(null);
   const [clock,setClock]=useState(Date.now());
   const [refreshSequence,setRefreshSequence]=useState(0);
@@ -57,7 +62,7 @@ export default function App() {
   const conflict=active.length>1;
   const selected=rows.find(r=>r.incident.id===selectedId) ?? active[0] ?? rows.find(r=>r.incident.status==="despachada") ?? rows[0];
   const recentlyVerified=isFieldSnapshotFresh(lastVerifiedAt,clock);
-  const controlsEnabled=Boolean(!native && canField && online && foreground && recentlyVerified && !mustValidate && !working && !conflict);
+  const controlsEnabled=Boolean(!native && !logoutPending && canField && online && foreground && recentlyVerified && !mustValidate && !working && !conflict);
   const canSendGPS=Boolean(controlsEnabled && active.length===1 && sharing);
   const location=useFieldLocation({enabled:canSendGPS,teamId:user?.teamId,organizationId:orgId});
   const scope:AgentOfflineScope|null=useMemo(()=>{
@@ -73,6 +78,27 @@ export default function App() {
     }
     setLoading(true);setMessage("");
     try {
+      // A failed logout must be completed remotely before any cookie is reused.
+      let pending=true;
+      try{ pending=hasPendingLogout(window.localStorage); }
+      catch{ pending=true; }
+      if(pending){
+        setLogoutPending(true);
+        if(!networkAvailable()) {
+          setUser(null);setAccess(null);setTenant(null);setOrgId(null);
+          setMessage("Saída remota pendente: conecte à central e tente confirmar o encerramento.");
+          return;
+        }
+        try {
+          await api.logout();
+          clearPendingLogout(window.localStorage);
+          setLogoutPending(false);
+        } catch {
+          setUser(null);setAccess(null);setTenant(null);setOrgId(null);
+          setMessage("Saída remota ainda não confirmada. Os comandos estão bloqueados.");
+          return;
+        }
+      }
       const current=await api.me();
       setUser(current);
       if(!current){setTenant(null);setOrgId(null);setAccess(null);setRows([]);return;}
@@ -86,6 +112,17 @@ export default function App() {
     } finally {setLoading(false);setLoaded(true);}
   },[]);
   useEffect(()=>{void bootstrap();},[bootstrap]);
+  useEffect(()=>{
+    const onFence=(event:StorageEvent)=>{
+      if(event.key!==PENDING_LOGOUT_KEY || event.newValue!=="pending")return;
+      // Another tab requested logout. Revoke operational UI in this tab too.
+      setLogoutPending(true);setSharing(false);setMustValidate(true);setLastVerifiedAt(null);
+      setUser(null);setTenant(null);setAccess(null);setOrgId(null);
+      setRows([]);setTotalOccurrences(0);clearFieldSession();
+    };
+    window.addEventListener("storage",onFence);
+    return()=>window.removeEventListener("storage",onFence);
+  },[]);
   useEffect(()=>{
     const offline=()=>{setOnline(false);setMustValidate(true);setSharing(false);};
     const onlineAgain=()=>{setOnline(true);setMustValidate(true);setSharing(false);};
@@ -164,6 +201,7 @@ export default function App() {
   }
   async function signIn(e:React.FormEvent) {
     e.preventDefault();
+    if(logoutPending){setMessage("Confirme o encerramento remoto da sessão antes de entrar.");return;}
     if(native){setMessage("O login no Android exige a etapa de autenticação nativa. Utilize a PWA da central por enquanto.");return;}
     if(working)return;
     setWorking(true);setMessage("");
@@ -176,9 +214,18 @@ export default function App() {
   }
   async function signOut() {
     setSharing(false);setMustValidate(true);setLastVerifiedAt(null);setWorking(true);
-    try{await api.logout();setMessage("Sessão encerrada.");}
-    catch{setMessage("Não foi possível confirmar logout remoto. Nenhuma ação local está autorizada.");}
-    finally{
+    setLogoutPending(true);
+    try { markPendingLogout(window.localStorage); }
+    catch { setMessage("Armazenamento indisponível: o encerramento deve ser confirmado na central."); }
+    try {
+      await api.logout();
+      clearPendingLogout(window.localStorage);
+      setLogoutPending(false);
+      setMessage("Sessão encerrada e confirmada na central.");
+    } catch {
+      setLogoutPending(true);
+      setMessage("Saída remota não confirmada. A sessão foi bloqueada neste dispositivo. Reconecte e confirme o logout.");
+    } finally {
       clearFieldSession();
       setUser(null);setAccess(null);setOrgId(null);setTenant(null);setRows([]);setTotalOccurrences(0);setLastVerifiedAt(null);
       setPassword("");setSelectedId(null);setSavedRows(null);setSavedUntil(null);
@@ -247,7 +294,13 @@ export default function App() {
       {!foreground&&<p className="notice warning" role="status">O aplicativo foi colocado em segundo plano. O envio de GPS foi desligado e as ocorrências devem ser revalidadas ao retornar.</p>}
       {message&&<p className="notice" role="status">{message}</p>}
       {loading&&<p className="notice">Verificando sessão autenticada...</p>}
-      {!loading&&!user&&!native&&<section className="panel login-panel"><h2>Entrar na central</h2><p>Use as credenciais do AXE Despacho. O aplicativo não armazena senha ou token.</p><form onSubmit={e=>void signIn(e)} className="login-form">
+      {!loading&&logoutPending&&!native&&<section className="panel login-panel" role="alert">
+        <h2>Saída remota pendente</h2>
+        <p>O aplicativo bloqueou todas as operações porque o encerramento da sessão na central ainda não foi confirmado. A liberação exige uma nova comunicação HTTPS com o servidor.</p>
+        <button className="primary" type="button" disabled={!online||working} onClick={()=>void bootstrap()}>Confirmar saída na central</button>
+        <p className="hint">Não é necessário informar senha. Nenhuma operação será enviada enquanto o bloqueio estiver ativo.</p>
+      </section>}
+      {!loading&&!user&&!native&&!logoutPending&&<section className="panel login-panel"><h2>Entrar na central</h2><p>Use as credenciais do AXE Despacho. O aplicativo não armazena senha ou token.</p><form onSubmit={e=>void signIn(e)} className="login-form">
         <label>Usuário<input value={username} onChange={e=>setUsername(e.target.value)} autoComplete="username" minLength={3} maxLength={64} required /></label>
         <label>Senha<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password" minLength={12} required /></label>
         <button className="primary" type="submit" disabled={!online||working}>{working?"Conectando...":"Entrar"}</button>
