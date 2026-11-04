@@ -6,7 +6,13 @@ O botão de compartilhamento aparece no atendimento com exatamente uma ocorrênc
 
 A central deve registrar hora de captura e indicar quando a última posição da equipe está desatualizada. Não presumir que a ausência de sinal significa que a equipe parou.
 
-## Android — implementação nativa pendente
+## Android — laboratório nativo de GPS (implementação inicial)
+
+O APK de depuração contém um **Foreground Service do tipo location**, iniciado pelo usuário com a atividade visível e GPS autorizado. Há uma notificação persistente com botão de encerrar. O serviço não consulta API, não recebe token, não armazena posições nem devolve coordenadas à WebView; somente o horário da última captura válida fica em memória. Ele é desabilitado automaticamente fora de builds Android marcadas como debuggable.
+
+Esta é uma prova de infraestrutura para teste com tela bloqueada, distinta de rastreamento real. Não há envio autenticado de coordenadas ao painel web, nem fila de posições no dispositivo.
+
+## Android — implementação operacional pendente
 
 - Serviço de primeiro plano do tipo `location` com notificação persistente durante a jornada.
 - Permissões exatas conforme versão Android e tipo de rastreamento, configuradas no Manifest e solicitadas no contexto adequado.

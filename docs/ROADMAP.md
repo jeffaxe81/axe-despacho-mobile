@@ -9,7 +9,7 @@
 | Persistência opt-in de resumo redigido | Implementação inicial com testes unitários |
 | GPS enquanto app ativo | Implementação inicial; teste com dispositivos pendente |
 | Autenticação nativa Android/iOS | Pendente: trabalho também no backend |
-| Serviço GPS em segundo plano | Pendente: módulo Android/iOS |
+| GPS nativo Android de laboratório (sem envio à central) | Código de Foreground Service e notificação no APK debug; testes em dispositivo pendentes |\n| Serviço GPS operacional autenticado | Pendente: autorização do agente, vínculo à central e teste de campo |
 | SQLite criptografado / fila idempotente | Pendente: contrato de backend e auditoria |
 | APK de teste Android | Automação de montagem debug no GitHub Actions; homologação em dispositivo pendente |
 | APK de produção e IPA distribuível | Pendente: autenticação nativa, assinatura/requisitos e homologação |

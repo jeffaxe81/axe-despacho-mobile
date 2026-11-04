@@ -13,7 +13,8 @@
     "native:android": "npm run native:sync && cap open android",
     "native:ios": "npm run native:sync && cap open ios",
     "android:verify": "node scripts/android/verify-generated.mjs",
-    "android:debug": "npm run build && npx cap add android && npx cap sync android && npm run android:verify && cd android && ./gradlew assembleDebug"
+    "android:install-lab": "node scripts/android/install-location-lab.mjs",
+    "android:debug": "npm run build && npx cap add android && npx cap sync android && npm run android:install-lab && npm run android:verify && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@capacitor/core": "8.6.0",

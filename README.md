@@ -71,3 +71,11 @@ O aplicativo interrompe o compartilhamento GPS ao perder rede ou ser colocado em
 O plugin oficial `@capacitor/app` sinaliza `appStateChange` na atividade Android, complementando `visibilitychange` do navegador. Ao colocar a atividade em segundo plano, o aplicativo suspende o compartilhamento GPS e exige revalidação antes de novos comandos; ao retornar não liga o GPS sozinho. **Isso NÃO equivale a um serviço de rastreamento em background.**
 
 O Git permanece público. O workflow executa `scripts/public-repo-guard.mjs` e recusa arquivos rastreados com certificados, keystores, perfis de provisionamento e `.env` com credenciais. Continue utilizando repositório de segredos do CI, nunca arquivos versionados. Esta verificação não substitui revisão de código, scanners de tokens e política de LGPD.
+
+## GPS com a tela bloqueada — laboratório Android
+
+O APK de debug gera agora um **Foreground Service Android** de laboratório com notificação persistente e ação `Encerrar teste GPS`. Ele pode continuar recebendo atualizações de GPS enquanto a tela estiver bloqueada, quando o sistema e as permissões permitirem. O laboratório armazena apenas **um horário de captura em memória volátil**, não grava ou envia latitude/longitude e não realiza ações no servidor. O serviço é ativado somente no aplicativo Android de depuração mediante confirmação explícita e permissão de localização.
+
+O serviço fica em `native/android/AxeLocationLabService.java`, o bridge em `AxeLocationLabPlugin.java` e é instalado em projeto Capacitor gerado via `npm run android:install-lab`. Os arquivos são de código público e não contêm certificados ou segredos.
+
+**Importante:** isto não é a funcionalidade de rastreamento operacional. Não sincroniza com mapa da central, não substitui a integração de login nativo da [issue #4](https://github.com/jeffaxe81/axe-despacho-mobile/issues/4) ou o serviço autenticado em campo da [issue #5](https://github.com/jeffaxe81/axe-despacho-mobile/issues/5). Não utilizar em atendimentos reais.
