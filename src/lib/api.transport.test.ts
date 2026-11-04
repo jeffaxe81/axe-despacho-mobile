@@ -44,6 +44,14 @@ describe("authenticated field queries",()=>{
     }));
     await expect(api.assignments(8)).rejects.toMatchObject({code:String(status)});
   });
+  it("prefers HTTP authentication denial over an inconsistent RPC body",async()=>{
+    prepare();
+    vi.stubGlobal("fetch",vi.fn().mockResolvedValue({
+      ok:false,status:401,
+      json:async()=>({error:{message:"Acesso negado",json:{data:{code:"RPC_ERROR"}}}})
+    }));
+    await expect(api.assignments(8)).rejects.toMatchObject({code:"401"});
+  });
   it("rejects a malformed 200 response instead of trusting it",async()=>{
     prepare();
     vi.stubGlobal("fetch",vi.fn().mockResolvedValue({
