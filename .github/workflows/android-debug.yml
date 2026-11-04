@@ -5,6 +5,7 @@ on:
       - 'src/**'
       - 'public/**'
       - 'scripts/android/**'
+      - 'native/android/**'
       - 'scripts/public-repo-guard.mjs'
       - 'package.json'
       - 'capacitor.config.ts'
@@ -57,6 +58,8 @@ jobs:
         run: |
           npx cap add android
           npx cap sync android
+      - name: Install Android GPS laboratory service
+        run: node scripts/android/install-location-lab.mjs
       - name: Verify native safety gates
         run: npm run android:verify
       - name: Build Android debug package
