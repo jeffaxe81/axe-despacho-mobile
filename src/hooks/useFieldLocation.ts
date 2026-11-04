@@ -15,6 +15,25 @@ export function validLocation(position:{ latitude:number; longitude:number; accu
     Number.isFinite(position.accuracy) && position.accuracy>=0 && position.accuracy<=MAX_ACCURACY_METERS &&
     Number.isFinite(position.timestamp) && position.timestamp<=now && now-position.timestamp<=MAX_AGE_MS;
 }
+
+/**
+ * Gate each GPS write by freshness, strictly increasing sample time and a
+ * minimum delay between ATTEMPTS (not only successful uploads). On a timeout
+ * a previous write may have reached the server, so never resend that sample.
+ */
+export function shouldAttemptFreshLocation(
+  lastAttemptAt: number | null,
+  lastAttemptFixAt: number | null,
+  point: { latitude:number; longitude:number; accuracy:number; timestamp:number },
+  now: number
+): boolean {
+  if (!validLocation(point,now)) return false;
+  if (lastAttemptFixAt !== null &&
+      (!Number.isFinite(lastAttemptFixAt) || point.timestamp <= lastAttemptFixAt)) return false;
+  if (lastAttemptAt === null) return true;
+  return Number.isFinite(lastAttemptAt) && lastAttemptAt >= 0 &&
+    now >= lastAttemptAt && now-lastAttemptAt >= INTERVAL_MS;
+}
 type Args = { enabled:boolean; teamId:number|null|undefined; organizationId:number|null; };
 export function useFieldLocation({enabled,teamId,organizationId}:Args) {
   const [status,setStatus]=useState<"idle"|"requesting"|"sharing"|"error">("idle");
@@ -29,7 +48,8 @@ export function useFieldLocation({enabled,teamId,organizationId}:Args) {
     }
     let stopped=false;
     let watchId:string|undefined;
-    let lastSentAt=0;
+    let lastAttemptAt:number|null=null;
+    let lastAttemptFixAt:number|null=null;
     let sending=false;
     setStatus("requesting");
     setMessage("Solicitando permissão de localização...");
@@ -50,16 +70,17 @@ export function useFieldLocation({enabled,teamId,organizationId}:Args) {
         setMessage("Coordenada ausente, imprecisa ou antiga; posição não enviada.");
         return;
       }
-      if(!shouldTransmitLocation(lastSentAt,now) || sending)return;
-      // lastSentAt is only advanced on successful transmission; do not replay
-      // queued GPS points or accept a previous sample after a failed request.
+      if(sending || !shouldAttemptFreshLocation(lastAttemptAt,lastAttemptFixAt,point,now))return;
+      // Record an ATTEMPT before any request. An uncertain network outcome
+      // never queues or automatically repeats the same captured GPS sample.
+      lastAttemptAt=now;
+      lastAttemptFixAt=point.timestamp;
       sending=true;
       void api.recordPosition(organizationId,teamId,{
         latitude:point.latitude,longitude:point.longitude,
         accuracyMeters:point.accuracy,capturedAt:new Date(point.timestamp),
       }).then(()=>{
         if(stop())return;
-        lastSentAt=Date.now();
         setStatus("sharing");
         setMessage("Posição transmitida às "+new Date().toLocaleTimeString("pt-BR")+".");
       }).catch((cause:unknown)=>{
