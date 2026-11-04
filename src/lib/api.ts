@@ -24,7 +24,7 @@ function endpoint(path:string):URL {
   }
   return url;
 }
-async function rpc<T>(method:"GET"|"POST",path:string,input?:unknown,organizationId?:number):Promise<T> {
+async function rpc<T>(method:"GET"|"POST",path:string,input?:unknown,organizationId?:number,signal?:AbortSignal):Promise<T> {
   const url = endpoint(path);
   const serialized = superjson.serialize(input ?? null);
   if (method==="GET") url.searchParams.set("input",JSON.stringify(serialized));
@@ -34,24 +34,42 @@ async function rpc<T>(method:"GET"|"POST",path:string,input?:unknown,organizatio
     if (!Number.isSafeInteger(organizationId) || organizationId<1) throw new ApiError("Organização inválida.");
     headers["x-organization-id"]=String(organizationId);
   }
-  const response=await fetch(url.toString(),{
-    method, headers, credentials:"include",
-    ...(method==="POST"?{body:JSON.stringify(serialized)}:{})
-  });
-  let payload:RpcEnvelope;
-  try { payload=await response.json() as RpcEnvelope; }
-  catch { throw new ApiError("Resposta inesperada da central. Verifique a origem HTTPS e o proxy."); }
-  if (payload.error) {
-    throw new ApiError(payload.error.json?.message ?? payload.error.message ?? "Falha na API.",
-      payload.error.json?.data?.code ?? payload.error.data?.code ?? "RPC_ERROR");
+  // Read-only requests may be cancelled by a tenant switch or app suspension.
+  // Timeouts do not retry mutations: their outcome could have reached the server.
+  const controller=new AbortController();
+  if(signal?.aborted)throw new ApiError("Consulta cancelada.", "ABORTED");
+  const abort=()=>controller.abort();
+  signal?.addEventListener("abort",abort,{once:true});
+  const timeout=setTimeout(()=>controller.abort(),method==="GET"?12_000:20_000);
+  try {
+    const response=await fetch(url.toString(),{
+      method,headers,credentials:"include",signal:controller.signal,
+      ...(method==="POST"?{body:JSON.stringify(serialized)}:{})
+    });
+    let payload:RpcEnvelope;
+    try {payload=await response.json() as RpcEnvelope;}
+    catch {
+      throw new ApiError("Resposta inesperada da central. Verifique a conexão HTTPS.", "INVALID_RESPONSE");
+    }
+    if(payload.error){
+      throw new ApiError(payload.error.json?.message ?? payload.error.message ?? "Falha na API.",
+        payload.error.json?.data?.code ?? payload.error.data?.code ?? "RPC_ERROR");
+    }
+    if(!response.ok||!payload.result||payload.result.data===undefined){
+      throw new ApiError("Resposta inválida da central.",String(response.status));
+    }
+    return superjson.deserialize<T>(payload.result.data as ReturnType<typeof superjson.serialize>);
+  } catch(cause) {
+    if(controller.signal.aborted) {
+      throw new ApiError(signal?.aborted?"Consulta cancelada.":"Tempo limite para comunicação com a central.",
+        signal?.aborted?"ABORTED":"TIMEOUT");
+    }
+    if(cause instanceof ApiError)throw cause;
+    throw new ApiError("Não foi possível conectar à central. Verifique a rede.", "NETWORK_ERROR");
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort",abort);
   }
-  if (!response.ok || !payload.result || payload.result.data === undefined) {
-    throw new ApiError("Resposta inválida da central.",String(response.status));
-  }
-  // The central uses initTRPC({ transformer: superjson }); payload.result.data
-  // is the SuperJSONResult envelope, not a plain JSON object.
-  const data=payload.result.data as ReturnType<typeof superjson.serialize>;
-  return superjson.deserialize<T>(data);
 }
 export const api = {
   me:()=>rpc<FieldUser|null>("GET","auth.me"),
@@ -59,7 +77,7 @@ export const api = {
   logout:()=>rpc<{success:boolean}>("POST","auth.logout"),
   tenant:()=>rpc<TenantSelection>("GET","tenant.selection"),
   access:()=>rpc<Access>("GET","access.me"),
-  assignments:(orgId:number)=>rpc<AssignmentResult>("GET","incidents.list",{page:1,pageSize:50},orgId),
+  assignments:(orgId:number,signal?:AbortSignal)=>rpc<AssignmentResult>("GET","incidents.list",{page:1,pageSize:50},orgId,signal),
   respond:(orgId:number,incidentId:number,accepted:boolean)=>
     rpc<unknown>("POST","incidents.respondToAssignment",{incidentId,accepted},orgId),
   transition:(orgId:number,incidentId:number,expectedStatus:IncidentStatus,nextStatus:IncidentStatus,note:string,revision?:number)=>
