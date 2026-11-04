@@ -74,7 +74,13 @@ async function rpc<T>(method:"GET"|"POST",path:string,input?:unknown,organizatio
 export const api = {
   me:()=>rpc<FieldUser|null>("GET","auth.me"),
   login:(username:string,password:string)=>rpc<unknown>("POST","auth.login",{username,password}),
-  logout:()=>rpc<{success:boolean}>("POST","auth.logout"),
+  logout:async()=>{
+    const result=await rpc<{success:boolean}>("POST","auth.logout");
+    if (result?.success !== true) {
+      throw new ApiError("A central não confirmou o encerramento da sessão.", "LOGOUT_UNCONFIRMED");
+    }
+    return result;
+  },
   tenant:()=>rpc<TenantSelection>("GET","tenant.selection"),
   access:()=>rpc<Access>("GET","access.me"),
   assignments:(orgId:number,signal?:AbortSignal)=>rpc<AssignmentResult>("GET","incidents.list",{page:1,pageSize:50},orgId,signal),
