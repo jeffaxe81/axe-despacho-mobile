@@ -1,6 +1,7 @@
 import { Geolocation } from "@capacitor/geolocation";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
+import { isAccessRevoked } from "../lib/sessionAccess";
 
 const INTERVAL_MS = 20_000;
 const MAX_ACCURACY_METERS = 500; // dispatch safety threshold, reject imprecise GPS
@@ -34,8 +35,8 @@ export function shouldAttemptFreshLocation(
   return Number.isFinite(lastAttemptAt) && lastAttemptAt >= 0 &&
     now >= lastAttemptAt && now-lastAttemptAt >= INTERVAL_MS;
 }
-type Args = { enabled:boolean; teamId:number|null|undefined; organizationId:number|null; };
-export function useFieldLocation({enabled,teamId,organizationId}:Args) {
+type Args = { enabled:boolean; teamId:number|null|undefined; organizationId:number|null; onAccessRevoked?:()=>void };
+export function useFieldLocation({enabled,teamId,organizationId,onAccessRevoked}:Args) {
   const [status,setStatus]=useState<"idle"|"requesting"|"sharing"|"error">("idle");
   const [message,setMessage]=useState("");
   // Never persist positions, location permission or geolocation state.
@@ -86,6 +87,13 @@ export function useFieldLocation({enabled,teamId,organizationId}:Args) {
       }).catch((cause:unknown)=>{
         if(stop())return;
         setStatus("error");
+        if(isAccessRevoked(cause)){
+          // Location transport is authenticated too. A 401/403 here must
+          // revoke the whole field UI immediately, not await the next poll.
+          setMessage("A central revogou as permissões de localização.");
+          onAccessRevoked?.();
+          return;
+        }
         setMessage(cause instanceof Error ? cause.message : "Não foi possível enviar GPS à central.");
       }).finally(()=>{sending=false;});
     }).then(id=>{
@@ -101,6 +109,6 @@ export function useFieldLocation({enabled,teamId,organizationId}:Args) {
       if(watchId)void Geolocation.clearWatch({id:watchId}).catch(()=>{});
       setStatus("idle");
     };
-  },[enabled,teamId,organizationId]);
+  },[enabled,teamId,organizationId,onAccessRevoked]);
   return {status,message};
 }
