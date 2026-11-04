@@ -59,14 +59,15 @@ export default function App() {
   const [password,setPassword]=useState("");
   const [note,setNote]=useState("");
   const native=Capacitor.isNativePlatform();
-  const canField=isFieldUser(user,access,orgId);
+  const canField=isFieldUser(user,access,orgId) &&
+    Array.isArray(tenant?.organizations) &&
+    tenant.organizations.some(org=>org.id===orgId);
   const active=activeAssigned(rows);
   const conflict=active.length>1;
   const selected=rows.find(r=>r.incident.id===selectedId) ?? active[0] ?? rows.find(r=>r.incident.status==="despachada") ?? rows[0];
   const recentlyVerified=isFieldSnapshotFresh(lastVerifiedAt,clock);
   const controlsEnabled=Boolean(!native && !logoutPending && canField && online && foreground && recentlyVerified && !mustValidate && !working && !conflict);
   const canSendGPS=Boolean(controlsEnabled && active.length===1 && sharing);
-  const location=useFieldLocation({enabled:canSendGPS,teamId:user?.teamId,organizationId:orgId});
   const scope:AgentOfflineScope|null=useMemo(()=>{
     if (!user?.teamId || !orgId || !user.active) return null;
     return {userId:user.id,organizationId:orgId,teamId:user.teamId};
@@ -83,6 +84,14 @@ export default function App() {
     clearFieldSession();
     setMessage(reason);
   },[]);
+
+  const onLocationAccessRevoked=useCallback(()=>{
+    revokeLocalAccess("A central revogou a sessão ou o acesso ao GPS. Faça login novamente.");
+  },[revokeLocalAccess]);
+  const location=useFieldLocation({
+    enabled:canSendGPS,teamId:user?.teamId,organizationId:orgId,
+    onAccessRevoked:onLocationAccessRevoked
+  });
 
   const bootstrap=useCallback(async()=>{
     // Do not attempt API auth from a different-origin Android/iOS WebView.
@@ -307,6 +316,11 @@ export default function App() {
     setCopyMessage(enabled?"Modo persistente opcional. O resumo expira em 15 minutos.":"Persistência desativada e cópia do dispositivo apagada.");
   }
   function chooseOrg(value:number) {
+    // Do not allow a forged or stale selector value to unlock scoped calls.
+    if(!Number.isSafeInteger(value) || !tenant?.organizations?.some(o=>o.id===value)){
+      setMessage("Organização não autorizada. Selecione uma organização da sua conta.");
+      return;
+    }
     setSharing(false);setMustValidate(true);setLastVerifiedAt(null);setRows([]);setSavedRows(null);
     setSelectedId(null);setPersistOnDevice(false);setOrgId(value);
   }
