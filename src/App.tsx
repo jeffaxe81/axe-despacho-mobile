@@ -2,7 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "./lib/api";
 import { activeAssigned, isFieldUser, statusLabels } from "./lib/contracts";
-import type { Access, AssignmentResult, AssignmentRow, FieldUser, IncidentStatus, TenantSelection } from "./lib/contracts";
+import type { Access, AssignmentRow, FieldUser, IncidentStatus, TenantSelection } from "./lib/contracts";
 import { agentOfflineKey, loadAuthorizedAssignmentSnapshot, saveLastAuthorizedAssignments } from "./lib/agentOffline";
 import type { AgentOfflineAssignment, AgentOfflineScope } from "./lib/agentOffline";
 import { clearFieldSession } from "./lib/deviceStorage";
@@ -10,7 +10,8 @@ import { useFieldLocation } from "./hooks/useFieldLocation";
 import { useForegroundLifecycle } from "./hooks/useForegroundLifecycle";
 import { AndroidGpsLab } from "./components/AndroidGpsLab";
 import { AndroidFieldDemo } from "./components/AndroidFieldDemo";
-import { PENDING_LOGOUT_KEY,markPendingLogout,hasPendingLogout,clearPendingLogout } from "./lib/sessionFence";
+import { PENDING_LOGOUT_KEY,markPendingLogout,hasPendingLogout,clearPendingLogout,assertSessionFenceWritable } from "./lib/sessionFence";
+import { validateAssignmentResult } from "./lib/assignmentValidation";
 import { ApiError } from "./lib/api";
 import { FIELD_REFRESH_INTERVAL_MS,isFieldSnapshotFresh,shouldQueryLiveAssignments,timeSinceVerification } from "./lib/clientFreshness";
 
@@ -78,6 +79,9 @@ export default function App() {
     }
     setLoading(true);setMessage("");
     try {
+      // Refuse all cookie-based authentication when the persistent logout fence
+      // cannot be reliably written and read by this browser.
+      assertSessionFenceWritable(window.localStorage);
       // A failed logout must be completed remotely before any cookie is reused.
       let pending=true;
       try{ pending=hasPendingLogout(window.localStorage); }
@@ -151,12 +155,9 @@ export default function App() {
       controller=nextController;
       inFlight=true;
       try {
-        const result:AssignmentResult=await api.assignments(orgId,nextController.signal);
+        const received=await api.assignments(orgId,nextController.signal);
         if(cancelled || nextController.signal.aborted)return;
-        if(!Array.isArray(result.rows) || !Number.isSafeInteger(result.total) ||
-          result.total<0 || result.rows.some(row=>row?.incident?.assignedTeamId!==user?.teamId)) {
-          throw new ApiError("A central retornou dados fora do escopo da equipe.", "TEAM_SCOPE_MISMATCH");
-        }
+        const result=validateAssignmentResult(received,user?.teamId);
         setRows(result.rows);
         setTotalOccurrences(result.total);
         setClock(Date.now());
@@ -167,7 +168,7 @@ export default function App() {
       } catch(cause) {
         if(cancelled || nextController.signal.aborted)return;
         setMustValidate(true);setLastVerifiedAt(null);setSharing(false);
-        if(cause instanceof ApiError && ["UNAUTHORIZED","FORBIDDEN","TEAM_SCOPE_MISMATCH"].includes(cause.code)) {
+        if(cause instanceof ApiError && ["UNAUTHORIZED","FORBIDDEN","TEAM_SCOPE_MISMATCH","INVALID_ASSIGNMENTS"].includes(cause.code)) {
           setRows([]);setTotalOccurrences(0);
         }
         setMessage("Não foi possível validar as atribuições na central: "+errorText(cause));
@@ -204,6 +205,8 @@ export default function App() {
     if(logoutPending){setMessage("Confirme o encerramento remoto da sessão antes de entrar.");return;}
     if(native){setMessage("O login no Android exige a etapa de autenticação nativa. Utilize a PWA da central por enquanto.");return;}
     if(working)return;
+    try { assertSessionFenceWritable(window.localStorage); }
+    catch { setMessage("Armazenamento seguro de sessão indisponível. Não é possível iniciar uma sessão neste navegador."); return; }
     setWorking(true);setMessage("");
     try {
       await api.login(username.trim(),password);
@@ -238,10 +241,7 @@ export default function App() {
     try {
       await fn();
       if(!orgId)throw new Error("Organização não selecionada.");
-      const updated=await api.assignments(orgId);
-      if(!Array.isArray(updated.rows) || updated.rows.some(row=>row.incident.assignedTeamId!==user?.teamId)) {
-        throw new ApiError("Resposta da equipe inválida.", "TEAM_SCOPE_MISMATCH");
-      }
+      const updated=validateAssignmentResult(await api.assignments(orgId),user?.teamId);
       setRows(updated.rows);
       setTotalOccurrences(updated.total);
       setLastVerifiedAt(Date.now());setClock(Date.now());
