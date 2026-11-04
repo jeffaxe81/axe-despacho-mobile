@@ -65,3 +65,9 @@ O projeto Android é **gerado temporariamente no CI** a partir do Capacitor 8 (S
 Para gerar no computador com Android SDK e Java 21: `npm run android:debug`. O Android 8 do Capacitor usa API 36 e Gradle; após criar o projeto pela primeira vez, ajuste o fluxo para `cap sync android` nas builds seguintes. **Não é uma release assinada para produção**.
 
 O aplicativo interrompe o compartilhamento GPS ao perder rede ou ser colocado em segundo plano; ao voltar, exige consulta atualizada à central antes de liberar operações. O limite de precisão enviado atualmente é de 500 metros (pontos piores são descartados), sujeito a homologação de campo.
+
+## Android: atividade em segundo plano e Git público
+
+O plugin oficial `@capacitor/app` sinaliza `appStateChange` na atividade Android, complementando `visibilitychange` do navegador. Ao colocar a atividade em segundo plano, o aplicativo suspende o compartilhamento GPS e exige revalidação antes de novos comandos; ao retornar não liga o GPS sozinho. **Isso NÃO equivale a um serviço de rastreamento em background.**
+
+O Git permanece público. O workflow executa `scripts/public-repo-guard.mjs` e recusa arquivos rastreados com certificados, keystores, perfis de provisionamento e `.env` com credenciais. Continue utilizando repositório de segredos do CI, nunca arquivos versionados. Esta verificação não substitui revisão de código, scanners de tokens e política de LGPD.

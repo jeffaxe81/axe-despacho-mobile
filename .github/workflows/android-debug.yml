@@ -5,6 +5,7 @@ on:
       - 'src/**'
       - 'public/**'
       - 'scripts/android/**'
+      - 'scripts/public-repo-guard.mjs'
       - 'package.json'
       - 'capacitor.config.ts'
       - 'index.html'
@@ -43,6 +44,8 @@ jobs:
           echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
       - name: Install Android SDK 36
         run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+      - name: Public repository safety
+        run: node scripts/public-repo-guard.mjs
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Web compile and unit tests

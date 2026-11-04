@@ -7,6 +7,7 @@ import { agentOfflineKey, loadAuthorizedAssignmentSnapshot, saveLastAuthorizedAs
 import type { AgentOfflineAssignment, AgentOfflineScope } from "./lib/agentOffline";
 import { clearFieldSession } from "./lib/deviceStorage";
 import { useFieldLocation } from "./hooks/useFieldLocation";
+import { useForegroundLifecycle } from "./hooks/useForegroundLifecycle";
 
 function errorText(cause:unknown):string {
   return cause instanceof Error ? cause.message : "Operação indisponível. Verifique sua conexão.";
@@ -30,7 +31,10 @@ export default function App() {
   const [online,setOnline]=useState(networkAvailable);
   const [mustValidate,setMustValidate]=useState(true);
   const [sharing,setSharing]=useState(false);
-  const [foreground,setForeground]=useState(()=>typeof document==="undefined"||document.visibilityState!=="hidden");
+  const foreground=useForegroundLifecycle(()=>{
+    setSharing(false);
+    setMustValidate(true);
+  });
   const [persistOnDevice,setPersistOnDevice]=useState(false);
   const [savedRows,setSavedRows]=useState<AgentOfflineAssignment[]|null>(null);
   const [savedUntil,setSavedUntil]=useState<number|null>(null);
@@ -73,18 +77,6 @@ export default function App() {
     } finally {setLoading(false);setLoaded(true);}
   },[]);
   useEffect(()=>{void bootstrap();},[bootstrap]);
-  useEffect(()=>{
-    const onVisibilityChange=()=>{
-      const visible=document.visibilityState!=="hidden";
-      setForeground(visible);
-      if(!visible){
-        setSharing(false);
-        setMustValidate(true);
-      }
-    };
-    document.addEventListener("visibilitychange",onVisibilityChange);
-    return()=>document.removeEventListener("visibilitychange",onVisibilityChange);
-  },[]);
   useEffect(()=>{
     const offline=()=>{setOnline(false);setMustValidate(true);setSharing(false);};
     const onlineAgain=()=>{setOnline(true);setMustValidate(true);setSharing(false);};
