@@ -2,7 +2,7 @@
 
 ## Base implementada
 
-O botão de compartilhamento aparece no atendimento com exatamente uma ocorrência ativa e uma sessão validada. A posição é obtida pelo plugin `@capacitor/geolocation` e enviada para `teams.recordLocation` somente após autorização explícita, respeitando cadência mínima de 20 segundos e descartando coordenadas inválidas ou antigas. O código de hoje não faz rastreamento em segundo plano.
+O botão de compartilhamento aparece no atendimento com exatamente uma ocorrência ativa e uma sessão validada. A posição é obtida pelo plugin `@capacitor/geolocation` e enviada para `teams.recordLocation` somente após autorização explícita, respeitando cadência mínima de 20 segundos e descartando coordenadas inválidas ou antigas. O código de hoje não faz rastreamento em segundo plano. O ciclo Android utiliza `@capacitor/app` para observar `appStateChange`, desligar o envio ao suspender a Activity e exigir validação nova no retorno, sem reiniciar o GPS automaticamente.
 
 A central deve registrar hora de captura e indicar quando a última posição da equipe está desatualizada. Não presumir que a ausência de sinal significa que a equipe parou.
 
