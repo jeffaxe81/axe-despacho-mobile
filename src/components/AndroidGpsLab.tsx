@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
 import { useEffect, useState } from "react";
+import { gpsLabDisplayLabels, gpsLabDisplayState } from "../lib/gpsLabStatus";
 
 type LabStatus = {
   running:boolean;
@@ -36,6 +37,7 @@ export function AndroidGpsLab() {
     return()=>{disposed=true;window.clearInterval(interval);};
   },[android]);
   if(!android)return null;
+  const fixState=gpsLabDisplayState(status.running,status.lastFixAt,Date.now());
 
   const refresh=async()=>setStatus(await Lab.status());
   const start=async()=>{
@@ -79,9 +81,14 @@ export function AndroidGpsLab() {
     <p className="detail" role="status">
       <strong>Serviço:</strong> {status.running?"ativo, com notificação do Android":"desligado"}
     </p>
+    <p className="detail" role="status">
+      <strong>Qualidade da captura:</strong> {gpsLabDisplayLabels[fixState]}.
+      {fixState==="stale"?" Uma captura antiga não deve ser apresentada como posição atual.":""}
+    </p>
     <p className="detail">
       <strong>Última captura válida:</strong>{" "}
-      {status.lastFixAt>0?new Date(status.lastFixAt).toLocaleTimeString("pt-BR"):"nenhuma posição válida"}
+      {status.running && status.lastFixAt>0 && Number.isFinite(status.lastFixAt) && status.lastFixAt<=Date.now()
+        ?new Date(status.lastFixAt).toLocaleTimeString("pt-BR"):"nenhuma posição recente confirmada"}
     </p>
     <p className="detail"><strong>Envio à central:</strong> desabilitado</p>
     <div className="button-grid">

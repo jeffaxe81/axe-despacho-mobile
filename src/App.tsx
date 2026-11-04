@@ -13,6 +13,7 @@ import { AndroidFieldDemo } from "./components/AndroidFieldDemo";
 import { PENDING_LOGOUT_KEY,markPendingLogout,hasPendingLogout,clearPendingLogout,assertSessionFenceWritable } from "./lib/sessionFence";
 import { validateAssignmentResult } from "./lib/assignmentValidation";
 import { ApiError } from "./lib/api";
+import { isAccessRevoked } from "./lib/sessionAccess";
 import { FIELD_REFRESH_INTERVAL_MS,isFieldSnapshotFresh,shouldQueryLiveAssignments,timeSinceVerification } from "./lib/clientFreshness";
 
 function errorText(cause:unknown):string {
@@ -71,12 +72,30 @@ export default function App() {
     return {userId:user.id,organizationId:orgId,teamId:user.teamId};
   },[user?.id,user?.teamId,user?.active,orgId]);
 
+  // Revoking a session must erase incident details and all offline summaries,
+  // not merely disable command buttons. No automatic write/retry is attempted.
+  const revokeLocalAccess=useCallback((reason:string)=>{
+    setSharing(false);setMustValidate(true);setLastVerifiedAt(null);
+    setUser(null);setTenant(null);setOrgId(null);setAccess(null);
+    setRows([]);setTotalOccurrences(0);setSelectedId(null);
+    setSavedRows(null);setSavedUntil(null);setPersistOnDevice(false);
+    setCopyMessage("");setNote("");setPassword("");
+    clearFieldSession();
+    setMessage(reason);
+  },[]);
+
   const bootstrap=useCallback(async()=>{
     // Do not attempt API auth from a different-origin Android/iOS WebView.
     if(Capacitor.isNativePlatform()){
       setUser(null);setTenant(null);setOrgId(null);setAccess(null);
       setLoading(false);setLoaded(true);return;
     }
+    // Identity may have changed in a different tab while this PWA was open.
+    // Hide details before refreshing auth.me / tenant.selection / access.me.
+    setSharing(false);setMustValidate(true);setLastVerifiedAt(null);
+    setRows([]);setSelectedId(null);setTotalOccurrences(0);
+    setSavedRows(null);setSavedUntil(null);setPersistOnDevice(false);
+    setCopyMessage("");
     setLoading(true);setMessage("");
     try {
       // Refuse all cookie-based authentication when the persistent logout fence
@@ -111,22 +130,25 @@ export default function App() {
       setTenant(selection);setAccess(permissions);
       setOrgId(selection.activeOrganizationId);
     } catch(cause){
-      setMessage(errorText(cause));
-      setUser(null);setTenant(null);setAccess(null);setOrgId(null);
+      if(isAccessRevoked(cause)){
+        revokeLocalAccess("A sessão expirou ou a central revogou o acesso. Faça login novamente.");
+      } else {
+        setMessage(errorText(cause));
+        setUser(null);setTenant(null);setAccess(null);setOrgId(null);
+      }
     } finally {setLoading(false);setLoaded(true);}
-  },[]);
+  },[revokeLocalAccess]);
   useEffect(()=>{void bootstrap();},[bootstrap]);
   useEffect(()=>{
     const onFence=(event:StorageEvent)=>{
       if(event.key!==PENDING_LOGOUT_KEY || event.newValue!=="pending")return;
       // Another tab requested logout. Revoke operational UI in this tab too.
-      setLogoutPending(true);setSharing(false);setMustValidate(true);setLastVerifiedAt(null);
-      setUser(null);setTenant(null);setAccess(null);setOrgId(null);
-      setRows([]);setTotalOccurrences(0);clearFieldSession();
+      setLogoutPending(true);
+      revokeLocalAccess("Outra aba solicitou a saída. A sessão de campo foi bloqueada.");
     };
     window.addEventListener("storage",onFence);
     return()=>window.removeEventListener("storage",onFence);
-  },[]);
+  },[revokeLocalAccess]);
   useEffect(()=>{
     const offline=()=>{setOnline(false);setMustValidate(true);setSharing(false);};
     const onlineAgain=()=>{setOnline(true);setMustValidate(true);setSharing(false);};
@@ -167,6 +189,10 @@ export default function App() {
           current.startsWith("Não foi possível validar as atribuições") ? "" : current);
       } catch(cause) {
         if(cancelled || nextController.signal.aborted)return;
+        if(isAccessRevoked(cause)){
+          revokeLocalAccess("A central revogou a sessão ou as permissões da equipe. Faça login novamente.");
+          return;
+        }
         setMustValidate(true);setLastVerifiedAt(null);setSharing(false);
         if(cause instanceof ApiError && ["UNAUTHORIZED","FORBIDDEN","TEAM_SCOPE_MISMATCH","INVALID_ASSIGNMENTS"].includes(cause.code)) {
           setRows([]);setTotalOccurrences(0);
@@ -185,7 +211,7 @@ export default function App() {
       controller?.abort();
       window.clearInterval(timer);
     };
-  },[canField,orgId,online,foreground,native,user?.id,user?.teamId,working,refreshSequence]);
+  },[canField,orgId,online,foreground,native,user?.id,user?.teamId,working,refreshSequence,revokeLocalAccess]);
   useEffect(()=>{setNote("");},[selected?.incident.id]);
   useEffect(()=>{
     if(savedUntil===null)return;
@@ -248,8 +274,12 @@ export default function App() {
       setMustValidate(false);
       setNote("");
       setMessage("Ação registrada. Situação atualizada com dados do servidor.");
-    } catch {
-      setMessage("Resultado da ação não confirmado. Consulte a central antes de tentar novamente.");
+    } catch(cause) {
+      if(isAccessRevoked(cause)){
+        revokeLocalAccess("A central rejeitou a sessão ou as permissões durante a ação. Faça login novamente.");
+      } else {
+        setMessage("Resultado da ação não confirmado. Consulte a central antes de tentar novamente.");
+      }
     } finally {setWorking(false);}
   }
   function saveSummary() {

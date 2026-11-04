@@ -30,6 +30,35 @@ describe("authenticated field queries",()=>{
     await expect(api.assignments(8,controller.signal)).rejects.toMatchObject({code:"ABORTED"});
     expect(fetchMock).not.toHaveBeenCalled();
   });
+  it.each([401,403])("preserves HTTP %s when structured tRPC code is missing",async(status)=>{
+    prepare();
+    vi.stubGlobal("fetch",vi.fn().mockResolvedValue({
+      ok:false,status,json:async()=>({error:{message:"Acesso negado"}})
+    }));
+    await expect(api.assignments(8)).rejects.toMatchObject({code:String(status)});
+  });
+  it.each([401,403])("revokes access on HTTP %s even with unparseable body",async(status)=>{
+    prepare();
+    vi.stubGlobal("fetch",vi.fn().mockResolvedValue({
+      ok:false,status,json:async()=>{throw new SyntaxError("unexpected response");}
+    }));
+    await expect(api.assignments(8)).rejects.toMatchObject({code:String(status)});
+  });
+  it("prefers HTTP authentication denial over an inconsistent RPC body",async()=>{
+    prepare();
+    vi.stubGlobal("fetch",vi.fn().mockResolvedValue({
+      ok:false,status:401,
+      json:async()=>({error:{message:"Acesso negado",json:{data:{code:"RPC_ERROR"}}}})
+    }));
+    await expect(api.assignments(8)).rejects.toMatchObject({code:"401"});
+  });
+  it("rejects a malformed 200 response instead of trusting it",async()=>{
+    prepare();
+    vi.stubGlobal("fetch",vi.fn().mockResolvedValue({
+      ok:true,status:200,json:async()=>null
+    }));
+    await expect(api.assignments(8)).rejects.toMatchObject({code:"INVALID_RESPONSE"});
+  });
   it("returns a controlled network error, never a queued write",async()=>{
     prepare();
     vi.stubGlobal("fetch",vi.fn().mockRejectedValue(new TypeError("offline")));

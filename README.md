@@ -103,3 +103,11 @@ Antes de considerar uma atualização de ocorrências como recente e liberar com
 O encerramento remoto só é considerado confirmado quando `auth.logout` devolve explicitamente `success: true`. Uma resposta HTTP 200 sem confirmação não remove a trava local. Antes de reutilizar cookies de sessão ou aceitar login na PWA, um teste sem dados pessoais verifica se o navegador consegue gravar, ler e remover a trava de logout; armazenamento indisponível bloqueia a autenticação. Estes controles não habilitam autenticação operacional no APK Android.
 
 Homologar com backend real, perda/reconexão de rede e aparelho físico antes de declarar a release pronta.
+
+## Sessão revogada e diagnóstico de GPS — robustez do cliente
+
+Quando a API devolve `UNAUTHORIZED`, `UNAUTHENTICATED`, `SESSION_EXPIRED`, `FORBIDDEN`, `PERMISSION_DENIED`, HTTP `401` ou `403`, a PWA bloqueia a operação, oculta imediatamente ocorrências, remove resumos temporários de ambos os armazenamentos e exige novo login. Isto vale para consultas e para o resultado de mutações. Falhas de rede ou timeout mantêm os comandos bloqueados até revalidação, sem afirmar que a autorização foi revogada nem repetir escritos automaticamente. O transporte mantém os códigos HTTP 401/403 mesmo com corpo vazio, malformado ou com código tRPC divergente.
+
+No APK Android de laboratório, o painel distingue **aguardando fix**, **captura recente** e **captura atrasada**; a classificação é baseada somente no timestamp volátil do serviço, nunca na latitude/longitude. Posições antigas não substituem timestamps mais recentes. O laboratório continua sem credenciais, API e transmissão de GPS.
+
+**Não há liberação para produção:** a autenticação nativa segura e o serviço GPS operacional continuam dependentes das issues #4 e #5 e de homologação em dispositivo físico e central real.

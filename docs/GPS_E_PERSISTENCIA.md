@@ -33,3 +33,9 @@ A PWA deste ciclo salva, opcionalmente, **apenas** código, categoria e status d
 A futura versão nativa poderá usar banco local **criptografado** (por exemplo SQLite + chave protegida pelo Keystore/Keychain) e retentativas com idempotência, desde que exista política de retenção aprovada. Não haverá buffer de GPS ou reenvio automático antes de o backend lidar com pontos antigos, duplicatas e ordem dos eventos.
 
 O objetivo é continuidade de consulta e do fluxo de trabalho sem enfraquecer autorização, privacidade ou integridade operacional.
+
+## Diagnóstico do GPS Android de laboratório
+
+A interface agora indica se o serviço está desligado, aguardando a primeira amostra, com captura recente (até 60 segundos), ou sem captura recente (atrasada). O estado é calculado usando somente o instante da última amostra válida e nunca assume que serviço ligado significa localização atualizada. O serviço descarta amostras fora de ordem, sem manter ou exibir coordenadas.
+
+Essas informações servem apenas à verificação do APK debug; não há compartilhamento autenticado, mapa operacional, envio de dados ou autorização de rastreamento real.

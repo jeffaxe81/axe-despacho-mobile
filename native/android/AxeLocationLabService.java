@@ -89,7 +89,9 @@ public final class AxeLocationLabService extends Service implements LocationList
         if (location != null && location.hasAccuracy() && location.getAccuracy() <= 500f) {
             long time = location.getTime();
             long now = System.currentTimeMillis();
-            if (time > 0L && time <= now && now - time <= 30_000L) {
+            if (time > lastFixAtMillis && time <= now && now - time <= 30_000L) {
+                // Never replace a newer timestamp with an out-of-order GPS fix.
+                // No latitude, longitude or other private location value is kept.
                 lastFixAtMillis = time;
             }
         }

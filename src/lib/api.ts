@@ -49,14 +49,22 @@ async function rpc<T>(method:"GET"|"POST",path:string,input?:unknown,organizatio
     let payload:RpcEnvelope;
     try {payload=await response.json() as RpcEnvelope;}
     catch {
-      throw new ApiError("Resposta inesperada da central. Verifique a conexão HTTPS.", "INVALID_RESPONSE");
+      throw new ApiError("Resposta inesperada da central. Verifique a conexão HTTPS.",
+        response.status === 401 || response.status === 403 ? String(response.status) : "INVALID_RESPONSE");
+    }
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new ApiError("Resposta inválida da central.",
+        response.status === 401 || response.status === 403 ? String(response.status) : "INVALID_RESPONSE");
     }
     if(payload.error){
       throw new ApiError(payload.error.json?.message ?? payload.error.message ?? "Falha na API.",
-        payload.error.json?.data?.code ?? payload.error.data?.code ?? "RPC_ERROR");
+        response.status === 401 || response.status === 403
+          ? String(response.status)
+          : payload.error.json?.data?.code ?? payload.error.data?.code ?? "RPC_ERROR");
     }
     if(!response.ok||!payload.result||payload.result.data===undefined){
-      throw new ApiError("Resposta inválida da central.",String(response.status));
+      throw new ApiError("Resposta inválida da central.",
+        response.status === 401 || response.status === 403 ? String(response.status) : "INVALID_RESPONSE");
     }
     return superjson.deserialize<T>(payload.result.data as ReturnType<typeof superjson.serialize>);
   } catch(cause) {
