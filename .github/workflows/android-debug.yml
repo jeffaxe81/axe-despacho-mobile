@@ -35,10 +35,12 @@ jobs:
           java-version: '21'
       # ubuntu-latest already includes Android SDK command line tools.
       # The setup-android v3 action currently requests removed sdkmanager "tools".
-      - name: Verify runner Android SDK
+      - name: Find runner Android SDK manager
         run: |
           test -n "${ANDROID_HOME:-}" || (echo "ANDROID_HOME indisponível" && exit 1)
-          command -v sdkmanager
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER" || (echo "sdkmanager ausente no runner" && exit 1)
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
       - name: Install Android SDK 36
         run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
       - name: Install dependencies
