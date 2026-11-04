@@ -1,4 +1,5 @@
 import superjson from "superjson";
+import { Capacitor } from "@capacitor/core";
 import type { Access, AssignmentResult, FieldUser, IncidentStatus, TenantSelection } from "./contracts";
 
 export class ApiError extends Error {
@@ -6,7 +7,13 @@ export class ApiError extends Error {
 }
 type RpcErrorShape = { message?:string; json?:{ message?:string; data?:{ code?:string } }; data?:{ code?:string } };
 type RpcEnvelope = { result?:{data?:unknown}; error?:RpcErrorShape };
+
+/** Fail closed until a server-approved Android authentication flow is implemented. */
+export function assertNativeApiAuthenticationReady(isNative: boolean): void {
+  if (isNative) throw new ApiError("O login nativo do Android ainda exige um contrato de autenticação seguro na central.", "NATIVE_AUTH_PENDING");
+}
 function endpoint(path:string):URL {
+  assertNativeApiAuthenticationReady(Capacitor.isNativePlatform());
   if (!/^[a-zA-Z][a-zA-Z0-9_.]*$/.test(path)) throw new ApiError("Procedimento de API inválido.");
   const url = new URL("/api/trpc/" + path, window.location.origin);
   const configured = import.meta.env.VITE_DISPATCH_API_BASE?.trim();

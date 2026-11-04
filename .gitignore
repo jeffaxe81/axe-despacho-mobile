@@ -8,7 +8,7 @@ coverage/
 .DS_Store
 .idea/
 .vscode/
-android/.gradle/
+android/\n# Android project is generated in CI until native modules are reviewed and versioned.\nandroid/.gradle/
 android/local.properties
 android/**/build/
 ios/Pods/

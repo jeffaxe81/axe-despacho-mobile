@@ -53,3 +53,15 @@ Consulte [Integração com a central](docs/INTEGRACAO_CENTRAL.md), [GPS nativo e
 ## Origem
 
 Base funcional extraída conceitualmente da branch `feat/axe-despacho-mobile-lite` do repositório da central e dos contratos tRPC do AXE Despacho. As duas soluções terão evolução e CI independentes.
+
+## Android primeiro — build debug
+
+O projeto Android é **gerado temporariamente no CI** a partir do Capacitor 8 (SDK 36, JDK 21). O workflow [Android APK (debug)](.github/workflows/android-debug.yml) compila o bundle web, executa os testes e cria um APK de depuração para teste visual/instalação. A configuração nativa ainda não está versionada, pois não há serviço GPS nativo aprovado nesta etapa.
+
+1. Acesse a aba **Actions** > **Android APK (debug)** e abra uma execução concluída.
+2. Na seção **Artifacts**, baixe `axe-despacho-android-debug`.
+3. Use o APK **somente em laboratório**: login nativo está desabilitado até existir autenticação segura da central. Nunca envie credenciais para uma WebView sem contrato validado.
+
+Para gerar no computador com Android SDK e Java 21: `npm run android:debug`. O Android 8 do Capacitor usa API 36 e Gradle; após criar o projeto pela primeira vez, ajuste o fluxo para `cap sync android` nas builds seguintes. **Não é uma release assinada para produção**.
+
+O aplicativo interrompe o compartilhamento GPS ao perder rede ou ser colocado em segundo plano; ao voltar, exige consulta atualizada à central antes de liberar operações. O limite de precisão enviado atualmente é de 500 metros (pontos piores são descartados), sujeito a homologação de campo.

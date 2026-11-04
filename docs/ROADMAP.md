@@ -11,7 +11,8 @@
 | Autenticação nativa Android/iOS | Pendente: trabalho também no backend |
 | Serviço GPS em segundo plano | Pendente: módulo Android/iOS |
 | SQLite criptografado / fila idempotente | Pendente: contrato de backend e auditoria |
-| APK assinado e IPA distribuível | Pendente: ferramentas, certificados e homologação |
+| APK de teste Android | Automação de montagem debug no GitHub Actions; homologação em dispositivo pendente |
+| APK de produção e IPA distribuível | Pendente: autenticação nativa, assinatura/requisitos e homologação |
 | Testes visuais 320–1024px, rede, bateria e permissões | Pendente |
 
-Não reportar conclusão de release sem CI verde, testes de dispositivo e validação real com servidor e contas de agentes. O repositório da central `dispatch` mantém seu PR independente.
+**Prioridade:** Android primeiro. iOS será retomado após validação do fluxo Android. A distribuição GitHub permanece pública, sem chaves, credenciais ou certificados no código.\n\nNão reportar conclusão de release sem CI verde, testes de dispositivo e validação real com servidor e contas de agentes. O repositório da central `dispatch` mantém seu PR independente.

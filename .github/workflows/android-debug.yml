@@ -1,0 +1,70 @@
+name: Android APK (debug)
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'scripts/android/**'
+      - 'package.json'
+      - 'capacitor.config.ts'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
+      - '.github/workflows/android-debug.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-debug-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  debug-apk:
+    name: Capacitor Android / debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      # ubuntu-latest already includes Android SDK command line tools.
+      # The setup-android v3 action currently requests removed sdkmanager "tools".
+      - name: Find runner Android SDK manager
+        run: |
+          test -n "${ANDROID_HOME:-}" || (echo "ANDROID_HOME indisponível" && exit 1)
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER" || (echo "sdkmanager ausente no runner" && exit 1)
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+      - name: Install Android SDK 36
+        run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Web compile and unit tests
+        run: |
+          npm run check
+          npm test
+          npm run build
+      - name: Generate Capacitor Android project
+        run: |
+          npx cap add android
+          npx cap sync android
+      - name: Verify native safety gates
+        run: npm run android:verify
+      - name: Build Android debug package
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace assembleDebug
+      - name: Upload debug APK (not approved for operations)
+        uses: actions/upload-artifact@v4
+        with:
+          name: axe-despacho-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
