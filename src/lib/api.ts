@@ -49,7 +49,12 @@ async function rpc<T>(method:"GET"|"POST",path:string,input?:unknown,organizatio
     let payload:RpcEnvelope;
     try {payload=await response.json() as RpcEnvelope;}
     catch {
-      throw new ApiError("Resposta inesperada da central. Verifique a conexão HTTPS.", "INVALID_RESPONSE");
+      throw new ApiError("Resposta inesperada da central. Verifique a conexão HTTPS.",
+        response.status === 401 || response.status === 403 ? String(response.status) : "INVALID_RESPONSE");
+    }
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new ApiError("Resposta inválida da central.",
+        response.status === 401 || response.status === 403 ? String(response.status) : "INVALID_RESPONSE");
     }
     if(payload.error){
       throw new ApiError(payload.error.json?.message ?? payload.error.message ?? "Falha na API.",
