@@ -125,6 +125,8 @@ export default function App() {
         setClock(Date.now());
         setLastVerifiedAt(Date.now());
         setMustValidate(false);
+        setMessage(current=>current.startsWith("Atualizando as ocorrências") ||
+          current.startsWith("Não foi possível validar as atribuições") ? "" : current);
       } catch(cause) {
         if(cancelled || nextController.signal.aborted)return;
         setMustValidate(true);setLastVerifiedAt(null);setSharing(false);
@@ -146,6 +148,7 @@ export default function App() {
       window.clearInterval(timer);
     };
   },[canField,orgId,online,foreground,native,user?.id,user?.teamId,working,refreshSequence]);
+  useEffect(()=>{setNote("");},[selected?.incident.id]);
   useEffect(()=>{
     if(savedUntil===null)return;
     const remaining=Math.max(0,savedUntil-Date.now());
