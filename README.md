@@ -89,3 +89,9 @@ O serviço fica em `native/android/AxeLocationLabService.java`, o bridge em `Axe
 A API usa `AbortController` e timeout de consulta (12s) ou mutação (20s), sem retry de escrita, pois o resultado de uma mutação interrompida pode ter sido aplicado na central. Em caso de resultado incerto, conferir o servidor antes de repetir o comando. Novos testes cobrem escopo, validade temporal, cancelamento, falha de rede e estado demonstrativo.
 
 **Limites:** o cliente apresenta até 50 ocorrências por consulta e avisa se existirem mais. No modo Android nativo de laboratório não se apresentam dados reais e não se realiza autenticação nem escrita no servidor.
+
+## Encerramento remoto resiliente
+
+Se o agente solicitar **Sair**, o navegador grava primeiro um marcador local de *logout pendente*, que não contém senha, cookie, token ou identificador pessoal. A aplicação então tenta encerrar a sessão na central. Se a requisição falhar (por exemplo, perda de sinal), **não volta a usar o cookie da sessão**: a tela bloqueia as operações e oferece o botão `Confirmar saída na central`. O marcador persiste após fechar e reabrir o navegador e notifica outras abas na mesma origem por `storage`. Somente a confirmação HTTPS de `auth.logout` apaga a trava.
+
+O marcador é separado dos resumos offline e não é removido pela limpeza normal desses resumos, pois a segurança da sessão tem precedência sobre a experiência offline. Se o dispositivo não permitir ler/gravar o marcador, a operação falha fechada e exige confirmação junto à central. A versão Android nativa segue sem autenticação operacional nesta fase.
