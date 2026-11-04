@@ -136,7 +136,10 @@ describe("AXE Despacho: 250 GPS deduplication, time and rate-limit guards", () =
     };
     const lastAttemptAt = delay === null ? null : now - delay;
     const lastAttemptFixAt = now - 10_000;
-    const eligible = example.valid && (delay === null || delay >= 20_000);
+    // The modeled clock is 1,000,000ms after epoch; a prior attempt cannot
+    // have a negative timestamp even if its elapsed interval exceeds 20s.
+    const eligible = example.valid && (delay === null ||
+      (delay >= 20_000 && now - delay >= 0));
     expect(shouldAttemptFreshLocation(lastAttemptAt, lastAttemptFixAt, sample, now)).toBe(eligible);
   });
 });
