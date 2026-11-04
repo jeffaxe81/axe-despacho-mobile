@@ -24,6 +24,13 @@ export function activeAssigned(rows: readonly AssignmentRow[]): AssignmentRow[] 
   return rows.filter(row=>["aceita","em_atendimento","pausada"].includes(row.incident.status));
 }
 export function isFieldUser(user:FieldUser|null, access:Access|null, orgId:number|null): boolean {
-  return Boolean(user?.active && user.operationalRole==="agente" && user.teamId && orgId &&
-    access?.permissions.includes("occurrences.view") && access.permissions.includes("occurrences.transition"));
+  // IDs from tRPC are untrusted runtime input. Zero, negative, fractional and
+  // unsafe identifiers must not unlock field controls or GPS.
+  const safeId=(value:unknown):value is number=>
+    typeof value==="number" && Number.isSafeInteger(value) && value>0;
+  return Boolean(user?.active && user.operationalRole==="agente" &&
+    safeId(user.id) && safeId(user.teamId) && safeId(orgId) &&
+    Array.isArray(access?.permissions) &&
+    access.permissions.includes("occurrences.view") &&
+    access.permissions.includes("occurrences.transition"));
 }
