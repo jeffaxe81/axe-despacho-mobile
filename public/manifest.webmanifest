@@ -1,0 +1,17 @@
+{
+  "name": "AXE Despacho · Agente de campo",
+  "short_name": "AXE Despacho",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f2f7fb",
+  "theme_color": "#082f49",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
