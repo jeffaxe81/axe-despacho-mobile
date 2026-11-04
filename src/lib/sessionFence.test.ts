@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {PENDING_LOGOUT_KEY,markPendingLogout,hasPendingLogout,clearPendingLogout} from "./sessionFence";
+import {PENDING_LOGOUT_KEY,markPendingLogout,hasPendingLogout,clearPendingLogout,assertSessionFenceWritable} from "./sessionFence";
 import {clearFieldCache} from "./deviceStorage";
 
 function store() {
@@ -13,6 +13,34 @@ function store() {
   };
 }
 describe("session logout fence protects web client after remote logout failure",()=>{
+  it("checks persistent logout-fence availability before cookie-based login",()=>{
+    const local=store();
+    assertSessionFenceWritable(local);
+    expect(local.length).toBe(0);
+    const readOnly={
+      getItem:(_key:string)=>null,
+      setItem:(_key:string,_value:string)=>{throw new Error("write blocked");},
+      removeItem:(_key:string)=>{},
+    };
+    expect(()=>assertSessionFenceWritable(readOnly)).toThrow(/write blocked/);
+    expect(()=>markPendingLogout(readOnly)).toThrow(/write blocked/);
+    const silentlyDiscarded={
+      getItem:(_key:string)=>null,
+      setItem:(_key:string,_value:string)=>{},
+      removeItem:(_key:string)=>{},
+    };
+    expect(()=>assertSessionFenceWritable(silentlyDiscarded)).toThrow();
+    expect(()=>markPendingLogout(silentlyDiscarded)).toThrow();
+  });
+  it("never clears a pending fence unless storage actually removed it",()=>{
+    const cannotRemove={
+      getItem:(key:string)=>key===PENDING_LOGOUT_KEY?"pending":null,
+      setItem:(_key:string,_value:string)=>{},
+      removeItem:(_key:string)=>{},
+    };
+    expect(()=>clearPendingLogout(cannotRemove)).toThrow();
+  });
+
   it("persists a pending-logout flag across app views without storing credentials",()=>{
     const local=store();
     markPendingLogout(local);
