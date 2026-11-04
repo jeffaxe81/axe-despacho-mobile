@@ -13,6 +13,8 @@
 | SQLite criptografado / fila idempotente | Pendente: contrato de backend e auditoria |
 | APK de teste Android | Automação de montagem debug no GitHub Actions; homologação em dispositivo pendente |
 | APK de produção e IPA distribuível | Pendente: autenticação nativa, assinatura/requisitos e homologação |
+| Cliente de campo: atualização automática e limite de validade | Implementado em branch; homologação de API/uso real pendente |
+| Simulador Android de ocorrências fictícias | Implementado em branch; não acessa API nem dados reais |
 | Testes visuais 320–1024px, rede, bateria e permissões | Pendente |
 
 **Prioridade:** Android primeiro. iOS será retomado após validação do fluxo Android. A distribuição GitHub permanece pública, sem chaves, credenciais ou certificados no código.\n\nNão reportar conclusão de release sem CI verde, testes de dispositivo e validação real com servidor e contas de agentes. O repositório da central `dispatch` mantém seu PR independente.

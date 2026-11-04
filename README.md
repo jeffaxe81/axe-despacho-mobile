@@ -79,3 +79,13 @@ O APK de debug gera agora um **Foreground Service Android** de laboratório com 
 O serviço fica em `native/android/AxeLocationLabService.java`, o bridge em `AxeLocationLabPlugin.java` e é instalado em projeto Capacitor gerado via `npm run android:install-lab`. Os arquivos são de código público e não contêm certificados ou segredos.
 
 **Importante:** isto não é a funcionalidade de rastreamento operacional. Não sincroniza com mapa da central, não substitui a integração de login nativo da [issue #4](https://github.com/jeffaxe81/axe-despacho-mobile/issues/4) ou o serviço autenticado em campo da [issue #5](https://github.com/jeffaxe81/axe-despacho-mobile/issues/5). Não utilizar em atendimentos reais.
+
+## Aprimoramentos do cliente Android e PWA
+
+**APK Android de demonstração:** `AndroidFieldDemo` permite experimentar a interface de atendimento com três ocorrências fictícias identificadas por `DEMO-...`, sem rede, login, persistência ou gravação na central. Aceitar, iniciar, pausar, retomar, concluir ou recusar são **transições exclusivamente locais na memória**; reiniciar apaga o histórico demonstrativo. O modo “simular ausência de conexão” bloqueia os botões de ação. O rastreio real de campo continua desabilitado no APK até a implementação da autenticação nativa.
+
+**PWA autenticada de mesma origem:** quando aberta, conectada e com usuário/equipe autorizados, consulta `incidents.list` a cada 15 segundos. Uma leitura não pode permanecer válida por mais de 45 segundos; em falha de rede, suspensão do app ou perda de autorização, aceite, transição e envio de GPS ficam bloqueados. As consultas antigas são canceladas ao mudar de equipe/organização. A aplicação valida se todas as ocorrências retornadas pertencem à equipe autorizada, e não permite replay automático de mutações após perda de conexão.
+
+A API usa `AbortController` e timeout de consulta (12s) ou mutação (20s), sem retry de escrita, pois o resultado de uma mutação interrompida pode ter sido aplicado na central. Em caso de resultado incerto, conferir o servidor antes de repetir o comando. Novos testes cobrem escopo, validade temporal, cancelamento, falha de rede e estado demonstrativo.
+
+**Limites:** o cliente apresenta até 50 ocorrências por consulta e avisa se existirem mais. No modo Android nativo de laboratório não se apresentam dados reais e não se realiza autenticação nem escrita no servidor.
