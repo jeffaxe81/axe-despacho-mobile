@@ -4,3 +4,18 @@
 @media(max-width:800px){.field-grid{grid-template-columns:1fr;gap:0}.field-grid>.panel{height:auto}.hero{padding:20px;flex-direction:column}.main{padding:14px 12px 28px}.panel{padding:16px;border-radius:14px}.topbar{padding:10px 12px}.brand small{font-size:10px}}
 @media(max-width:380px){.header-actions{gap:6px}.brand{gap:7px}.brand-mark{width:40px;height:40px}.brand strong{font-size:13px}.net-online,.net-offline{font-size:10px;padding:5px}.button-grid{grid-template-columns:1fr}.panel{padding:14px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Separate, clearly marked in-memory Android training simulator */
+.android-demo{border-color:#9b9cc2}
+.demo-banner{display:grid;gap:4px;padding:12px 15px;margin-bottom:17px;border-radius:10px;background:#312c68;color:#fff}
+.demo-banner strong{letter-spacing:.065em;font-size:12px}
+.demo-banner span{font-size:12px;color:#f0eefd}
+.demo-layout{display:grid;grid-template-columns:minmax(190px,.85fr) minmax(0,1.15fr);gap:16px;margin-top:18px}
+.demo-selector{display:grid;gap:9px;align-content:start}
+.demo-detail{min-width:0}
+.demo-detail h3{margin:0 0 12px;font-size:15px}
+.demo-reset{width:100%;margin-top:14px}
+.demo-history-heading{font-size:13px;margin-top:20px!important}
+.demo-history{padding-left:22px;font-size:12px;line-height:1.8}
+.android-demo button{min-height:44px}
+@media(max-width:720px){.demo-layout{grid-template-columns:1fr}.demo-selector{grid-template-columns:1fr}.demo-detail{padding-top:10px;border-top:1px solid #dae5eb}}
