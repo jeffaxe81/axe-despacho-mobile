@@ -41,10 +41,10 @@ async function rpc<T>(method:"GET"|"POST",path:string,input?:unknown,organizatio
   if (!response.ok || !payload.result || payload.result.data === undefined) {
     throw new ApiError("Resposta inválida da central.",String(response.status));
   }
-  const data=payload.result.data;
-  return superjson.deserialize<T>(data && typeof data==="object" && "json" in data
-    ? data as ReturnType<typeof superjson.serialize>
-    : {json:data});
+  // The central uses initTRPC({ transformer: superjson }); payload.result.data
+  // is the SuperJSONResult envelope, not a plain JSON object.
+  const data=payload.result.data as ReturnType<typeof superjson.serialize>;
+  return superjson.deserialize<T>(data);
 }
 export const api = {
   me:()=>rpc<FieldUser|null>("GET","auth.me"),
