@@ -10,8 +10,8 @@ export function isForbiddenTrackedPath(path) {
   const name = path.split("/").at(-1) ?? "";
   if (name === ".env" || (name.startsWith(".env.") && name !== ".env.example")) return true;
   if (["google-services.json", "GoogleService-Info.plist", "local.properties", "id_rsa", "id_ed25519"].includes(name)) return true;
-  if (/\\.(?:jks|keystore|p12|p8|pem|der|key|mobileprovision|cer)$/i.test(name)) return true;
-  if (/^android\\/app\\/build\\/outputs\\//.test(path)) return true;
+  if (/\.(?:jks|keystore|p12|p8|pem|der|key|mobileprovision|cer)$/i.test(name)) return true;
+  if (/^android\/app\/build\/outputs\//.test(path)) return true;
   return false;
 }
 export function validateTrackedPaths(paths) {
