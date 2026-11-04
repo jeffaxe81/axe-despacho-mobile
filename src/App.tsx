@@ -30,6 +30,7 @@ export default function App() {
   const [online,setOnline]=useState(networkAvailable);
   const [mustValidate,setMustValidate]=useState(true);
   const [sharing,setSharing]=useState(false);
+  const [foreground,setForeground]=useState(()=>typeof document==="undefined"||document.visibilityState!=="hidden");
   const [persistOnDevice,setPersistOnDevice]=useState(false);
   const [savedRows,setSavedRows]=useState<AgentOfflineAssignment[]|null>(null);
   const [savedUntil,setSavedUntil]=useState<number|null>(null);
@@ -43,7 +44,7 @@ export default function App() {
   const active=activeAssigned(rows);
   const conflict=active.length>1;
   const selected=rows.find(r=>r.incident.id===selectedId) ?? active[0] ?? rows.find(r=>r.incident.status==="despachada") ?? rows[0];
-  const controlsEnabled=Boolean(canField && online && !mustValidate && !working && !conflict);
+  const controlsEnabled=Boolean(!native && canField && online && foreground && !mustValidate && !working && !conflict);
   const canSendGPS=Boolean(controlsEnabled && active.length===1 && sharing);
   const location=useFieldLocation({enabled:canSendGPS,teamId:user?.teamId,organizationId:orgId});
   const scope:AgentOfflineScope|null=useMemo(()=>{
@@ -52,6 +53,11 @@ export default function App() {
   },[user?.id,user?.teamId,user?.active,orgId]);
 
   const bootstrap=useCallback(async()=>{
+    // Do not attempt API auth from a different-origin Android/iOS WebView.
+    if(Capacitor.isNativePlatform()){
+      setUser(null);setTenant(null);setOrgId(null);setAccess(null);
+      setLoading(false);setLoaded(true);return;
+    }
     setLoading(true);setMessage("");
     try {
       const current=await api.me();
@@ -67,6 +73,18 @@ export default function App() {
     } finally {setLoading(false);setLoaded(true);}
   },[]);
   useEffect(()=>{void bootstrap();},[bootstrap]);
+  useEffect(()=>{
+    const onVisibilityChange=()=>{
+      const visible=document.visibilityState!=="hidden";
+      setForeground(visible);
+      if(!visible){
+        setSharing(false);
+        setMustValidate(true);
+      }
+    };
+    document.addEventListener("visibilitychange",onVisibilityChange);
+    return()=>document.removeEventListener("visibilitychange",onVisibilityChange);
+  },[]);
   useEffect(()=>{
     const offline=()=>{setOnline(false);setMustValidate(true);setSharing(false);};
     const onlineAgain=()=>{setOnline(true);setMustValidate(true);setSharing(false);};
@@ -113,6 +131,7 @@ export default function App() {
   }
   async function signIn(e:React.FormEvent) {
     e.preventDefault();
+    if(native){setMessage("O login no Android exige a etapa de autenticação nativa. Utilize a PWA da central por enquanto.");return;}
     if(working)return;
     setWorking(true);setMessage("");
     try {
@@ -186,14 +205,16 @@ export default function App() {
     <main className="main">
       <div className="hero"><div><span className="eyebrow">Operação em campo</span><h1>Despachos no seu dispositivo</h1><p>Receba ocorrências, atualize a equipe e compartilhe sua localização com a central quando autorizado.</p></div><span className="device-label">{native?"Aplicativo nativo":"Aplicativo web"}</span></div>
       {!online&&<p className="notice warning" role="alert">Sem rede. Nenhuma alteração de status ou transmissão de GPS será iniciada. O resumo temporário só pode ser consultado após autenticação válida.</p>}
-      {native&&<p className="notice warning">A sessão nativa entre origens ainda requer contrato de autenticação na central. GPS em segundo plano não está habilitado neste ciclo.</p>}
+      {native&&<p className="notice warning" role="status">Prévia Android de homologação: a interface nativa está disponível, porém o login operacional e o GPS em segundo plano ainda exigem integração segura na central. Nenhuma senha será solicitada nesta versão nativa.</p>}
+      {!foreground&&<p className="notice warning" role="status">O aplicativo foi colocado em segundo plano. O envio de GPS foi desligado e as ocorrências devem ser revalidadas ao retornar.</p>}
       {message&&<p className="notice" role="status">{message}</p>}
       {loading&&<p className="notice">Verificando sessão autenticada...</p>}
-      {!loading&&!user&&<section className="panel login-panel"><h2>Entrar na central</h2><p>Use as credenciais do AXE Despacho. O aplicativo não armazena senha ou token.</p><form onSubmit={e=>void signIn(e)} className="login-form">
+      {!loading&&!user&&!native&&<section className="panel login-panel"><h2>Entrar na central</h2><p>Use as credenciais do AXE Despacho. O aplicativo não armazena senha ou token.</p><form onSubmit={e=>void signIn(e)} className="login-form">
         <label>Usuário<input value={username} onChange={e=>setUsername(e.target.value)} autoComplete="username" minLength={3} maxLength={64} required /></label>
         <label>Senha<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password" minLength={12} required /></label>
         <button className="primary" type="submit" disabled={!online||working}>{working?"Conectando...":"Entrar"}</button>
       </form><p className="hint">Para acesso web, publique sob a mesma origem HTTPS da API. O acesso nativo exige integração adicional de autenticação.</p></section>}
+      {native&&<section className="panel login-panel"><h2>Android · prévia técnica</h2><p>O APK de desenvolvimento permite validar instalação, layout e inicialização da WebView. Para operar ocorrências, utilize por enquanto a versão web da central em HTTPS.</p><p className="hint">Não use este APK para atendimento real. A próxima integração será a autenticação do dispositivo com credenciais protegidas e escopo de equipe.</p></section>}
       {user&&tenant&&tenant.organizations.length>0&&<section className="panel">
         <div className="section-head"><h2>Equipe e organização</h2><span className="pill">{user.name}</span></div>
         <div className="organization">

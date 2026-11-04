@@ -3,11 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 
 const INTERVAL_MS = 20_000;
-const MAX_ACCURACY_METERS = 10_000;
+const MAX_ACCURACY_METERS = 500; // dispatch safety threshold, reject imprecise GPS
 const MAX_AGE_MS = 30_000;
 
 export function shouldTransmitLocation(lastSentAt:number, now:number) {
-  return Number.isFinite(now) && (lastSentAt===0 || now-lastSentAt>=INTERVAL_MS);
+  return Number.isFinite(now) && now>=0 && (lastSentAt===0 || (now>=lastSentAt && now-lastSentAt>=INTERVAL_MS));
 }
 export function validLocation(position:{ latitude:number; longitude:number; accuracy:number; timestamp:number }, now:number) {
   return Number.isFinite(position.latitude) && Math.abs(position.latitude)<=90 &&

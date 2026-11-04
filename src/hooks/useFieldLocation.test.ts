@@ -7,12 +7,13 @@ describe("GPS de campo - cadência e coordenada",()=>{
     expect(shouldTransmitLocation(0,100_000)).toBe(true);
     expect(shouldTransmitLocation(100_000,119_999)).toBe(false);
     expect(shouldTransmitLocation(100_000,120_000)).toBe(true);
+    expect(shouldTransmitLocation(100_000,99_999)).toBe(false);
   });
   it("rejeita localização ausente ou antiga sem reportar posição fantasma",()=>{
     expect(validLocation(point,100_100)).toBe(true);
     expect(validLocation({...point,latitude:100},100_100)).toBe(false);
     expect(validLocation({...point,longitude:NaN},100_100)).toBe(false);
-    expect(validLocation({...point,accuracy:10_001},100_100)).toBe(false);
+    expect(validLocation({...point,accuracy:501},100_100)).toBe(false);
     expect(validLocation(point,130_001)).toBe(false);
     expect(validLocation(point,90_000)).toBe(false);
   });
