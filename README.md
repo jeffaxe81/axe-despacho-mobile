@@ -95,3 +95,11 @@ A API usa `AbortController` e timeout de consulta (12s) ou mutação (20s), sem 
 Se o agente solicitar **Sair**, o navegador grava primeiro um marcador local de *logout pendente*, que não contém senha, cookie, token ou identificador pessoal. A aplicação então tenta encerrar a sessão na central. Se a requisição falhar (por exemplo, perda de sinal), **não volta a usar o cookie da sessão**: a tela bloqueia as operações e oferece o botão `Confirmar saída na central`. O marcador persiste após fechar e reabrir o navegador e notifica outras abas na mesma origem por `storage`. Somente a confirmação HTTPS de `auth.logout` apaga a trava.
 
 O marcador é separado dos resumos offline e não é removido pela limpeza normal desses resumos, pois a segurança da sessão tem precedência sobre a experiência offline. Se o dispositivo não permitir ler/gravar o marcador, a operação falha fechada e exige confirmação junto à central. A versão Android nativa segue sem autenticação operacional nesta fase.
+
+## Proteções adicionais de sincronização e sessão (04/11/2026)
+
+Antes de considerar uma atualização de ocorrências como recente e liberar comandos/GPS, a PWA valida em runtime o contrato completo de cada página: total e limite de 50 itens, IDs únicos, formatos de status/prioridade, revisão de status e vínculo de **todas** as ocorrências à equipe autenticada. Um resultado inconsistente bloqueia ações; não é reaproveitado como atualização válida.
+
+O encerramento remoto só é considerado confirmado quando `auth.logout` devolve explicitamente `success: true`. Uma resposta HTTP 200 sem confirmação não remove a trava local. Antes de reutilizar cookies de sessão ou aceitar login na PWA, um teste sem dados pessoais verifica se o navegador consegue gravar, ler e remover a trava de logout; armazenamento indisponível bloqueia a autenticação. Estes controles não habilitam autenticação operacional no APK Android.
+
+Homologar com backend real, perda/reconexão de rede e aparelho físico antes de declarar a release pronta.
