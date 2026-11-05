@@ -22,6 +22,33 @@ describe("authenticated field queries",()=>{
     expect((options.headers as Record<string,string>)["x-organization-id"]).toBe("8");
     expect(options.credentials).toBe("include");
   });
+  it("sends a team active-status filter supported by the central",async()=>{
+    prepare();
+    const fetchMock=vi.fn().mockResolvedValue({
+      ok:true,status:200,json:async()=>({result:{data:superjson.serialize({rows:[],total:0})}})
+    });
+    vi.stubGlobal("fetch",fetchMock);
+    await api.assignments(8,undefined,"pausada");
+    const [url,options]=fetchMock.mock.calls[0] as [string,RequestInit];
+    const input=superjson.deserialize<Record<string,unknown>>(
+      JSON.parse(new URL(url).searchParams.get("input")!)
+    );
+    expect(input).toEqual({page:1,pageSize:50,status:"pausada"});
+    expect((options.headers as Record<string,string>)["x-organization-id"]).toBe("8");
+  });
+  it.each([0,1,2])("follows the central's positive-only status revision input: %s",async(revision)=>{
+    prepare();
+    const fetchMock=vi.fn().mockResolvedValue({
+      ok:true,status:200,json:async()=>({result:{data:superjson.serialize({})}})
+    });
+    vi.stubGlobal("fetch",fetchMock);
+    await api.transition(8,100,"aceita","em_atendimento","Equipe assumiu",revision);
+    const [url,options]=fetchMock.mock.calls[0] as [string,RequestInit];
+    expect(new URL(url).pathname).toBe("/api/trpc/incidents.transition");
+    const input=superjson.deserialize<Record<string,unknown>>(JSON.parse(options.body as string));
+    if(revision===0)expect(input).not.toHaveProperty("expectedStatusRevision");
+    else expect(input.expectedStatusRevision).toBe(revision);
+  });
   it("cancels queries before sending anything if switching tenant",async()=>{
     prepare();
     const fetchMock=vi.fn();

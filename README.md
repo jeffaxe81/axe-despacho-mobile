@@ -111,3 +111,11 @@ Quando a API devolve `UNAUTHORIZED`, `UNAUTHENTICATED`, `SESSION_EXPIRED`, `FORB
 No APK Android de laboratório, o painel distingue **aguardando fix**, **captura recente** e **captura atrasada**; a classificação é baseada somente no timestamp volátil do serviço, nunca na latitude/longitude. Posições antigas não substituem timestamps mais recentes. O laboratório continua sem credenciais, API e transmissão de GPS.
 
 **Não há liberação para produção:** a autenticação nativa segura e o serviço GPS operacional continuam dependentes das issues #4 e #5 e de homologação em dispositivo físico e central real.
+
+## Validação de ocorrências ativas fora da primeira página
+
+Uma consulta sem filtro retorna até 50 ocorrências. Não é seguro concluir que não existe outra ocorrência ativa somente porque ela não aparece nessa primeira página, que pode conter registros antigos ou finalizados. Para evitar autorizar comandos e GPS com uma contagem incompleta, o cliente agora faz, na mesma atualização de primeiro plano, quatro consultas autenticadas no escopo da organização: primeira página geral e contagens filtradas pelos status `aceita`, `em_atendimento` e `pausada`.
+
+As quatro respostas são validadas pelo mesmo ID de equipe; status filtrados devem coincidir com o filtro, identificadores ativos não podem se repetir, versões do mesmo incidente devem ser consistentes e as páginas de 50 precisam respeitar a contagem total. Se uma ocorrência ativa não estiver na página geral, ela aparece no topo da lista do agente. Se a contagem global indicar duas ou mais ocorrências ativas, GPS e mutações são bloqueados. Qualquer falha ou inconsistência entre consultas bloqueia os comandos até revalidação.
+
+**Limitação importante:** respostas de consultas paralelas não são uma fotografia transacional da base. As verificações eliminam inconsistências observáveis, mas a confirmação atômica de versões/contagens dependerá de contrato específico no backend. O APK nativo continua em modo laboratório até autenticação segura e homologação com a central.

@@ -11,7 +11,7 @@ import { useForegroundLifecycle } from "./hooks/useForegroundLifecycle";
 import { AndroidGpsLab } from "./components/AndroidGpsLab";
 import { AndroidFieldDemo } from "./components/AndroidFieldDemo";
 import { PENDING_LOGOUT_KEY,markPendingLogout,hasPendingLogout,clearPendingLogout,assertSessionFenceWritable } from "./lib/sessionFence";
-import { validateAssignmentResult } from "./lib/assignmentValidation";
+import { loadVerifiedTeamSnapshot } from "./lib/teamSnapshot";
 import { ApiError } from "./lib/api";
 import { isAccessRevoked } from "./lib/sessionAccess";
 import { FIELD_REFRESH_INTERVAL_MS,isFieldSnapshotFresh,shouldQueryLiveAssignments,timeSinceVerification } from "./lib/clientFreshness";
@@ -45,6 +45,7 @@ export default function App() {
   const [clock,setClock]=useState(Date.now());
   const [refreshSequence,setRefreshSequence]=useState(0);
   const [totalOccurrences,setTotalOccurrences]=useState(0);
+  const [activeCount,setActiveCount]=useState(0);
   const [sharing,setSharing]=useState(false);
   const foreground=useForegroundLifecycle(()=>{
     setSharing(false);
@@ -63,11 +64,12 @@ export default function App() {
     Array.isArray(tenant?.organizations) &&
     tenant.organizations.some(org=>org.id===orgId);
   const active=activeAssigned(rows);
-  const conflict=active.length>1;
+  // Global active counts come from status-filtered reads, NOT only the first 50 rows.
+  const conflict=activeCount>1;
   const selected=rows.find(r=>r.incident.id===selectedId) ?? active[0] ?? rows.find(r=>r.incident.status==="despachada") ?? rows[0];
   const recentlyVerified=isFieldSnapshotFresh(lastVerifiedAt,clock);
   const controlsEnabled=Boolean(!native && !logoutPending && canField && online && foreground && recentlyVerified && !mustValidate && !working && !conflict);
-  const canSendGPS=Boolean(controlsEnabled && active.length===1 && sharing);
+  const canSendGPS=Boolean(controlsEnabled && activeCount===1 && active.length===1 && sharing);
   const scope:AgentOfflineScope|null=useMemo(()=>{
     if (!user?.teamId || !orgId || !user.active) return null;
     return {userId:user.id,organizationId:orgId,teamId:user.teamId};
@@ -78,7 +80,7 @@ export default function App() {
   const revokeLocalAccess=useCallback((reason:string)=>{
     setSharing(false);setMustValidate(true);setLastVerifiedAt(null);
     setUser(null);setTenant(null);setOrgId(null);setAccess(null);
-    setRows([]);setTotalOccurrences(0);setSelectedId(null);
+    setRows([]);setTotalOccurrences(0);setActiveCount(0);setSelectedId(null);
     setSavedRows(null);setSavedUntil(null);setPersistOnDevice(false);
     setCopyMessage("");setNote("");setPassword("");
     clearFieldSession();
@@ -102,7 +104,7 @@ export default function App() {
     // Identity may have changed in a different tab while this PWA was open.
     // Hide details before refreshing auth.me / tenant.selection / access.me.
     setSharing(false);setMustValidate(true);setLastVerifiedAt(null);
-    setRows([]);setSelectedId(null);setTotalOccurrences(0);
+    setRows([]);setSelectedId(null);setTotalOccurrences(0);setActiveCount(0);
     setSavedRows(null);setSavedUntil(null);setPersistOnDevice(false);
     setCopyMessage("");
     setLoading(true);setMessage("");
@@ -172,7 +174,7 @@ export default function App() {
   useEffect(()=>{
     if(!shouldQueryLiveAssignments(canField,online,foreground,native) || !orgId){
       setRows([]);setSelectedId(null);setMustValidate(true);
-      setLastVerifiedAt(null);setTotalOccurrences(0);
+      setLastVerifiedAt(null);setTotalOccurrences(0);setActiveCount(0);
       return;
     }
     // Suspend polling while a mutation or login/logout transition is pending.
@@ -186,11 +188,15 @@ export default function App() {
       controller=nextController;
       inFlight=true;
       try {
-        const received=await api.assignments(orgId,nextController.signal);
+        const result=await loadVerifiedTeamSnapshot(
+          user?.teamId,
+          (status,signal)=>api.assignments(orgId,signal,status),
+          nextController.signal
+        );
         if(cancelled || nextController.signal.aborted)return;
-        const result=validateAssignmentResult(received,user?.teamId);
         setRows(result.rows);
         setTotalOccurrences(result.total);
+        setActiveCount(result.activeCount);
         setClock(Date.now());
         setLastVerifiedAt(Date.now());
         setMustValidate(false);
@@ -203,8 +209,8 @@ export default function App() {
           return;
         }
         setMustValidate(true);setLastVerifiedAt(null);setSharing(false);
-        if(cause instanceof ApiError && ["UNAUTHORIZED","FORBIDDEN","TEAM_SCOPE_MISMATCH","INVALID_ASSIGNMENTS"].includes(cause.code)) {
-          setRows([]);setTotalOccurrences(0);
+        if(cause instanceof ApiError && ["UNAUTHORIZED","FORBIDDEN","TEAM_SCOPE_MISMATCH","INVALID_ASSIGNMENTS","INCONSISTENT_TEAM_SNAPSHOT"].includes(cause.code)) {
+          setRows([]);setTotalOccurrences(0);setActiveCount(0);
         }
         setMessage("Não foi possível validar as atribuições na central: "+errorText(cause));
       } finally {
@@ -265,7 +271,7 @@ export default function App() {
       setMessage("Saída remota não confirmada. A sessão foi bloqueada neste dispositivo. Reconecte e confirme o logout.");
     } finally {
       clearFieldSession();
-      setUser(null);setAccess(null);setOrgId(null);setTenant(null);setRows([]);setTotalOccurrences(0);setLastVerifiedAt(null);
+      setUser(null);setAccess(null);setOrgId(null);setTenant(null);setRows([]);setTotalOccurrences(0);setActiveCount(0);setLastVerifiedAt(null);
       setPassword("");setSelectedId(null);setSavedRows(null);setSavedUntil(null);
       setPersistOnDevice(false);setWorking(false);
     }
@@ -276,9 +282,12 @@ export default function App() {
     try {
       await fn();
       if(!orgId)throw new Error("Organização não selecionada.");
-      const updated=validateAssignmentResult(await api.assignments(orgId),user?.teamId);
+      const updated=await loadVerifiedTeamSnapshot(
+        user?.teamId,(status,signal)=>api.assignments(orgId,signal,status)
+      );
       setRows(updated.rows);
       setTotalOccurrences(updated.total);
+      setActiveCount(updated.activeCount);
       setLastVerifiedAt(Date.now());setClock(Date.now());
       setMustValidate(false);
       setNote("");
@@ -370,7 +379,7 @@ export default function App() {
         <section className="panel">
           <div className="section-head"><div><h2>Ocorrências atribuídas</h2><p>{totalOccurrences} ocorrência(s) da equipe</p></div><button className="secondary" type="button" onClick={refresh} disabled={!online||working||!foreground}>{working?"Atualizando...":"Atualizar"}</button></div>
           {(mustValidate||!recentlyVerified)&&<p className="notice warning">Atribuições sem confirmação recente. Ações e GPS bloqueados até nova consulta à central.</p>}
-          {conflict&&<p className="notice danger">Conflito: mais de uma ocorrência ativa para a equipe. Ações e localização bloqueadas.</p>}
+          {conflict&&<p className="notice danger">Conflito: {activeCount} ocorrências ativas encontradas na equipe, inclusive fora da primeira página. Ações e localização bloqueadas.</p>}
           <div className="assignment-list">{rows.map(({incident})=><button key={incident.id} type="button" className={"incident-card "+(selected?.incident.id===incident.id?"selected":"")} onClick={()=>{setSelectedId(incident.id);setNote("");}}>
             <span className="incident-heading"><strong>{incident.code}</strong><span className="priority">{incident.priority}</span></span>
             <span className="incident-category">{incident.category}</span><span className="incident-status">{statusLabels[incident.status]}</span>
