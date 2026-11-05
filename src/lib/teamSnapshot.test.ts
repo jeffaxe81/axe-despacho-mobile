@@ -117,6 +117,53 @@ describe("team snapshot: field safety across the first-page boundary",()=>{
       pausada:page([incident(5,"pausada")])
     }))).rejects.toMatchObject({code:"INCONSISTENT_TEAM_SNAPSHOT"});
   });
+  it("rejects filtered active totals larger than the entire team",async()=>{
+    const active=incident(7,"aceita");
+    await expect(loadVerifiedTeamSnapshot(teamId,reader(empty(),{
+      aceita:page([active],1)
+    }))).rejects.toMatchObject({code:"INCONSISTENT_TEAM_SNAPSHOT"});
+  });
+  it("rejects a fabricated active incident when the whole team fits on one page",async()=>{
+    const listed=incident(1,"concluida");
+    const ghost=incident(2,"aceita");
+    await expect(loadVerifiedTeamSnapshot(teamId,reader(page([listed]),{
+      aceita:page([ghost])
+    }))).rejects.toMatchObject({code:"INCONSISTENT_TEAM_SNAPSHOT"});
+  });
+  it("rejects a different active incident even when total stays unchanged",async()=>{
+    const listed=incident(100,"aceita");
+    const switched=incident(200,"aceita");
+    await expect(loadVerifiedTeamSnapshot(teamId,reader(page([listed]),{
+      aceita:page([switched])
+    }))).rejects.toMatchObject({code:"INCONSISTENT_TEAM_SNAPSHOT"});
+  });
+  it.each(["priority","category","address","description","code"] as const)(
+    "rejects a concurrently modified %s even when status stays the same",async(field)=>{
+      const original=incident(3,"aceita",7);
+      const altered={
+        incident:{...original.incident,[field]:field==="priority"?"critica":"Conteúdo alterado"}
+      };
+      await expect(loadVerifiedTeamSnapshot(teamId,reader(page([original]),{
+        aceita:page([altered])
+      }))).rejects.toMatchObject({code:"INCONSISTENT_TEAM_SNAPSHOT"});
+    }
+  );
+  it("accepts a complete first page with exactly 50 entries and matching active filter",async()=>{
+    const history=Array.from({length:49},(_,i)=>incident(i+1,"concluida"));
+    const live=incident(100,"aceita");
+    const snapshot=await loadVerifiedTeamSnapshot(teamId,reader(page([...history,live],50),{
+      aceita:page([live])
+    }));
+    expect(snapshot.rows).toHaveLength(50);
+    expect(snapshot.activeCount).toBe(1);
+  });
+  it("rejects total active count greater than total team count beyond page one",async()=>{
+    const history=Array.from({length:50},(_,i)=>incident(i+1,"concluida"));
+    const live=Array.from({length:50},(_,i)=>incident(i+100,"aceita"));
+    await expect(loadVerifiedTeamSnapshot(teamId,reader(page(history,51),{
+      aceita:page(live,52)
+    }))).rejects.toMatchObject({code:"INCONSISTENT_TEAM_SNAPSHOT"});
+  });
   it("requires the agent's valid team id",async()=>{
     await expect(loadVerifiedTeamSnapshot(null,reader(empty())))
       .rejects.toMatchObject({code:"INVALID_ASSIGNMENTS"});
