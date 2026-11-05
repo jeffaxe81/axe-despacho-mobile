@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {PENDING_LOGOUT_KEY,markPendingLogout,hasPendingLogout,clearPendingLogout,assertSessionFenceWritable} from "./sessionFence";
+import {PENDING_LOGOUT_KEY,markPendingLogout,hasPendingLogout,clearPendingLogout,assertSessionFenceWritable,shouldRevokeForLogoutFenceEvent} from "./sessionFence";
 import {clearFieldCache} from "./deviceStorage";
 
 function store() {
@@ -61,6 +61,16 @@ describe("session logout fence protects web client after remote logout failure",
     };
     expect(hasPendingLogout(sticky)).toBe(true);
     expect(()=>clearPendingLogout(sticky)).toThrow(/Encerramento/);
+  });
+  it.each(["", "pending", "corrupted", "0", "{}"])(
+    "revokes other-tab field UI for any present logout marker: %s",value=>{
+      expect(shouldRevokeForLogoutFenceEvent(PENDING_LOGOUT_KEY,value)).toBe(true);
+    }
+  );
+  it("never unlocks a session on marker removal or unrelated storage keys",()=>{
+    expect(shouldRevokeForLogoutFenceEvent(PENDING_LOGOUT_KEY,null)).toBe(false);
+    expect(shouldRevokeForLogoutFenceEvent("unrelated.key","pending")).toBe(false);
+    expect(shouldRevokeForLogoutFenceEvent(null,"pending")).toBe(false);
   });
   it("persists a pending-logout flag across app views without storing credentials",()=>{
     const local=store();
