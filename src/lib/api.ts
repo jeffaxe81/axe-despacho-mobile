@@ -97,7 +97,7 @@ export const api = {
     rpc<unknown>("POST","incidents.respondToAssignment",{incidentId,accepted},orgId),
   transition:(orgId:number,incidentId:number,expectedStatus:IncidentStatus,nextStatus:IncidentStatus,note:string,revision?:number)=>
     rpc<unknown>("POST","incidents.transition",{
-      incidentId,expectedStatus,nextStatus,note,...(revision!==undefined?{expectedStatusRevision:revision}:{})
+      incidentId,expectedStatus,nextStatus,note,...(revision && revision>0?{expectedStatusRevision:revision}:{})
     },orgId),
   recordPosition:(orgId:number,teamId:number,position:{latitude:number;longitude:number;accuracyMeters?:number;capturedAt:Date})=>
     rpc<unknown>("POST","teams.recordLocation",{teamId,...position},orgId)
