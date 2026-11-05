@@ -1,6 +1,6 @@
 import { ApiError } from "./api";
 import { validateAssignmentResult } from "./assignmentValidation";
-import type { AssignmentResult, AssignmentRow, IncidentStatus } from "./contracts";
+import type { AssignmentResult, AssignmentRow } from "./contracts";
 
 export const FIELD_ACTIVE_STATUSES = ["aceita", "em_atendimento", "pausada"] as const;
 export type FieldActiveStatus = typeof FIELD_ACTIVE_STATUSES[number];
