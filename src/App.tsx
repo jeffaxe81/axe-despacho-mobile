@@ -82,6 +82,7 @@ export default function App() {
   const revokeLocalAccess=useCallback((reason:string)=>{
     // Fence in-flight auth, incident reads and mutations before React renders.
     sessionEpoch.revoke();
+    setLoading(false);setLoaded(true);
     setWorking(false);
     setSharing(false);setMustValidate(true);setLastVerifiedAt(null);
     setUser(null);setTenant(null);setOrgId(null);setAccess(null);
@@ -181,12 +182,18 @@ export default function App() {
     return()=>window.removeEventListener("storage",onFence);
   },[revokeLocalAccess]);
   useEffect(()=>{
-    const offline=()=>{setOnline(false);setMustValidate(true);setSharing(false);};
-    const onlineAgain=()=>{setOnline(true);setMustValidate(true);setSharing(false);};
+    const offline=()=>{
+      sessionEpoch.changeScope();
+      setOnline(false);setMustValidate(true);setLastVerifiedAt(null);setSharing(false);
+    };
+    const onlineAgain=()=>{
+      sessionEpoch.changeScope();
+      setOnline(true);setMustValidate(true);setLastVerifiedAt(null);setSharing(false);
+    };
     window.addEventListener("offline",offline);
     window.addEventListener("online",onlineAgain);
     return ()=>{window.removeEventListener("offline",offline);window.removeEventListener("online",onlineAgain);};
-  },[]);
+  },[sessionEpoch]);
   useEffect(()=>{
     const interval=window.setInterval(()=>setClock(Date.now()),5000);
     return()=>window.clearInterval(interval);
@@ -258,6 +265,7 @@ export default function App() {
 
   function refresh() {
     if(!shouldQueryLiveAssignments(canField,online,foreground,native) || !orgId || working)return;
+    sessionEpoch.changeScope();
     setMustValidate(true);setLastVerifiedAt(null);
     setRefreshSequence(current=>current+1);
     setMessage("Atualizando as ocorrências com a central...");
@@ -268,8 +276,17 @@ export default function App() {
     if(logoutPending){setMessage("Confirme o encerramento remoto da sessão antes de entrar.");return;}
     if(native){setMessage("O login no Android exige a etapa de autenticação nativa. Utilize a PWA da central por enquanto.");return;}
     if(working)return;
-    try { assertSessionFenceWritable(window.localStorage); }
-    catch { setMessage("Armazenamento seguro de sessão indisponível. Não é possível iniciar uma sessão neste navegador."); return; }
+    try {
+      assertSessionFenceWritable(window.localStorage);
+      if(hasPendingLogout(window.localStorage)){
+        setLogoutPending(true);
+        revokeLocalAccess("Existe uma saída remota pendente. Confirme o encerramento na central.");
+        return;
+      }
+    } catch {
+      setMessage("Armazenamento seguro de sessão indisponível. Não é possível iniciar uma sessão neste navegador.");
+      return;
+    }
     setWorking(true);setMessage("");
     try {
       await api.login(username.trim(),password);
@@ -338,14 +355,16 @@ export default function App() {
     }
   }
   function saveSummary() {
-    if(!scope || mustValidate || !online || !canField || conflict)return;
+    if(!scope || mustValidate || !online || !canField || conflict || logoutPending ||
+      !sessionEpoch.isOperational(sessionEpoch.snapshot()))return;
     try {
       saveLastAuthorizedAssignments(persistOnDevice?localStorage:sessionStorage,scope,redacted(rows));
       setCopyMessage("Resumo mínimo salvo por até 15 minutos, sem endereços ou dados de GPS.");
     } catch {setCopyMessage("Não foi possível salvar a cópia temporária.");}
   }
   function openSummary() {
-    if(!scope || !canField)return;
+    if(!scope || !canField || logoutPending ||
+      !sessionEpoch.isOperational(sessionEpoch.snapshot()))return;
     try {
       const snapshot=loadAuthorizedAssignmentSnapshot(persistOnDevice?localStorage:sessionStorage,scope);
       setSavedRows(snapshot?.rows??null);
