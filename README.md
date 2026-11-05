@@ -119,3 +119,9 @@ Uma consulta sem filtro retorna até 50 ocorrências. Não é seguro concluir qu
 As quatro respostas são validadas pelo mesmo ID de equipe; status filtrados devem coincidir com o filtro, identificadores ativos não podem se repetir, versões do mesmo incidente devem ser consistentes e as páginas de 50 precisam respeitar a contagem total. Se uma ocorrência ativa não estiver na página geral, ela aparece no topo da lista do agente. Se a contagem global indicar duas ou mais ocorrências ativas, GPS e mutações são bloqueados. Qualquer falha ou inconsistência entre consultas bloqueia os comandos até revalidação.
 
 **Limitação importante:** respostas de consultas paralelas não são uma fotografia transacional da base. As verificações eliminam inconsistências observáveis, mas a confirmação atômica de versões/contagens dependerá de contrato específico no backend. O APK nativo continua em modo laboratório até autenticação segura e homologação com a central.
+
+### Verificação de coerência das quatro consultas de ocorrência
+
+O cliente agora rejeita um conjunto de respostas em que a soma de ocorrências ativas seja maior que o total declarado da equipe. Quando a consulta geral contém **todas** as ocorrências (até 50), cada item ativo dos filtros precisa estar presente nessa mesma página. Uma ocorrência filtrada mas ausente da lista completa é sinalizada como `INCONSISTENT_TEAM_SNAPSHOT`, sem habilitar comandos ou GPS. Também são detectadas diferenças de código, prioridade, categoria, endereço e descrição entre as consultas de um mesmo incidente, além do estado e da revisão já validados.
+
+Este endurecimento detecta contradições de contagem e conteúdo, mas **não transforma consultas paralelas em uma transação atômica**. A autorização operacional definitiva continua no servidor; a autenticação nativa e os testes reais de campo continuam pendentes.
