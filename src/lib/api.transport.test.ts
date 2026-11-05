@@ -9,6 +9,27 @@ describe("authenticated field queries",()=>{
     vi.stubGlobal("window",{location:{origin}});
     vi.spyOn(Capacitor,"isNativePlatform").mockReturnValue(false);
   };
+  it("Android WebView remains blocked before any authenticated network request",async()=>{
+    vi.stubGlobal("window",{location:{origin:"capacitor://localhost"}});
+    vi.spyOn(Capacitor,"isNativePlatform").mockReturnValue(true);
+    const fetchMock=vi.fn();
+    vi.stubGlobal("fetch",fetchMock);
+    const attempts=[
+      ()=>api.me(),
+      ()=>api.login("agent","example-password"),
+      ()=>api.logout(),
+      ()=>api.tenant(),
+      ()=>api.access(),
+      ()=>api.assignments(8),
+      ()=>api.respond(8,100,true),
+      ()=>api.transition(8,100,"aceita","em_atendimento","Equipe assumiu"),
+      ()=>api.recordPosition(8,9,{latitude:-27.1,longitude:-48.6,capturedAt:new Date()})
+    ];
+    for(const execute of attempts) {
+      await expect(execute()).rejects.toMatchObject({code:"NATIVE_AUTH_PENDING"});
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it("uses same-origin cookie, tenant-scoped read and SuperJSON",async()=>{
     prepare();
     const fetchMock=vi.fn().mockResolvedValue({
