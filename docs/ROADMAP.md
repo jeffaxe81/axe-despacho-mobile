@@ -27,3 +27,10 @@ Não reportar conclusão de release sem CI verde, testes de dispositivo e valida
 ## Auditoria de consistência das atribuições
 
 Novo gate local de consistência: o total de ocorrências ativas nunca pode superar o total geral; se a equipe possui até 50 ocorrências, todas as ocorrências ativas retornadas por filtros devem existir na página geral; divergências de dados de um mesmo incidente entre as quatro consultas exigem revalidação e bloqueiam comandos/GPS. Testes de regressão incluem casos válidos de limite de página e resultados contraditórios. A consistência transacional atômica da central ainda depende de suporte no backend e testes integrados.
+
+## Segurança contra respostas tardias (ciclo de seis frentes)
+
+- Implementação cliente: tickets voláteis para autenticação, logout, revogação, troca de tenant e consultas/mutações em voo; solicitações antigas não reativam a UI.
+- Android: regressão do bloqueio `NATIVE_AUTH_PENDING` para todas as operações autenticadas, incluindo GPS; sem envio de credenciais pela WebView.
+- Entrega em branch com CI obrigatório: teste de corrida, matriz existente de 1.000 cenários, build web e Gradle APK debug.
+- Ainda bloqueado: contrato de autenticação no backend, Android Keystore, App Links/PKCE, E2E com servidor real e teste de campo Android 14–16.

@@ -1,5 +1,5 @@
 import { Capacitor } from "@capacitor/core";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./lib/api";
 import { activeAssigned, isFieldUser, statusLabels } from "./lib/contracts";
 import type { Access, AssignmentRow, FieldUser, IncidentStatus, TenantSelection } from "./lib/contracts";
@@ -14,6 +14,7 @@ import { markPendingLogout,hasPendingLogout,clearPendingLogout,assertSessionFenc
 import { loadVerifiedTeamSnapshot } from "./lib/teamSnapshot";
 import { ApiError } from "./lib/api";
 import { isAccessRevoked } from "./lib/sessionAccess";
+import { SessionEpoch } from "./lib/sessionEpoch";
 import { FIELD_REFRESH_INTERVAL_MS,isFieldSnapshotFresh,shouldQueryLiveAssignments,timeSinceVerification } from "./lib/clientFreshness";
 
 function errorText(cause:unknown):string {
@@ -47,6 +48,7 @@ export default function App() {
   const [totalOccurrences,setTotalOccurrences]=useState(0);
   const [activeCount,setActiveCount]=useState(0);
   const [sharing,setSharing]=useState(false);
+  const sessionEpoch=useRef(new SessionEpoch()).current;
   const foreground=useForegroundLifecycle(()=>{
     setSharing(false);
     setMustValidate(true);
@@ -78,6 +80,10 @@ export default function App() {
   // Revoking a session must erase incident details and all offline summaries,
   // not merely disable command buttons. No automatic write/retry is attempted.
   const revokeLocalAccess=useCallback((reason:string)=>{
+    // Fence in-flight auth, incident reads and mutations before React renders.
+    sessionEpoch.revoke();
+    setLoading(false);setLoaded(true);
+    setWorking(false);
     setSharing(false);setMustValidate(true);setLastVerifiedAt(null);
     setUser(null);setTenant(null);setOrgId(null);setAccess(null);
     setRows([]);setTotalOccurrences(0);setActiveCount(0);setSelectedId(null);
@@ -85,7 +91,7 @@ export default function App() {
     setCopyMessage("");setNote("");setPassword("");
     clearFieldSession();
     setMessage(reason);
-  },[]);
+  },[sessionEpoch]);
 
   const onLocationAccessRevoked=useCallback(()=>{
     revokeLocalAccess("A central revogou a sessão ou o acesso ao GPS. Faça login novamente.");
@@ -96,6 +102,7 @@ export default function App() {
   });
 
   const bootstrap=useCallback(async()=>{
+    const ticket=sessionEpoch.beginAuthentication();
     // Do not attempt API auth from a different-origin Android/iOS WebView.
     if(Capacitor.isNativePlatform()){
       setUser(null);setTenant(null);setOrgId(null);setAccess(null);
@@ -104,6 +111,8 @@ export default function App() {
     // Identity may have changed in a different tab while this PWA was open.
     // Hide details before refreshing auth.me / tenant.selection / access.me.
     setSharing(false);setMustValidate(true);setLastVerifiedAt(null);
+    // Never show the previous identity during an asynchronous revalidation.
+    setUser(null);setTenant(null);setOrgId(null);setAccess(null);
     setRows([]);setSelectedId(null);setTotalOccurrences(0);setActiveCount(0);
     setSavedRows(null);setSavedUntil(null);setPersistOnDevice(false);
     setCopyMessage("");
@@ -125,30 +134,41 @@ export default function App() {
         }
         try {
           await api.logout();
+          if(!sessionEpoch.isCurrent(ticket))return;
           clearPendingLogout(window.localStorage);
           setLogoutPending(false);
         } catch {
+          if(!sessionEpoch.isCurrent(ticket))return;
           setUser(null);setAccess(null);setTenant(null);setOrgId(null);
           setMessage("Saída remota ainda não confirmada. Os comandos estão bloqueados.");
           return;
         }
       }
       const current=await api.me();
-      setUser(current);
-      if(!current){setTenant(null);setOrgId(null);setAccess(null);setRows([]);return;}
+      if(!sessionEpoch.isCurrent(ticket))return;
+      if(!current){setUser(null);setTenant(null);setOrgId(null);setAccess(null);setRows([]);return;}
       const selection=await api.tenant();
+      if(!sessionEpoch.isCurrent(ticket))return;
       const permissions=await api.access();
-      setTenant(selection);setAccess(permissions);
+      if(!sessionEpoch.isCurrent(ticket))return;
+      // Only a current, fully checked authentication can unlock live work.
+      if(!sessionEpoch.grant(ticket))return;
+      setUser(current);setTenant(selection);setAccess(permissions);
       setOrgId(selection.activeOrganizationId);
     } catch(cause){
+      if(!sessionEpoch.isCurrent(ticket))return;
       if(isAccessRevoked(cause)){
         revokeLocalAccess("A sessão expirou ou a central revogou o acesso. Faça login novamente.");
+        setLoading(false);setLoaded(true);
       } else {
         setMessage(errorText(cause));
         setUser(null);setTenant(null);setAccess(null);setOrgId(null);
       }
-    } finally {setLoading(false);setLoaded(true);}
-  },[revokeLocalAccess]);
+    } finally {
+      // A stale bootstrap cannot dismiss the loading state of a newer login.
+      if(sessionEpoch.isCurrent(ticket)){setLoading(false);setLoaded(true);}
+    }
+  },[revokeLocalAccess,sessionEpoch]);
   useEffect(()=>{void bootstrap();},[bootstrap]);
   useEffect(()=>{
     const onFence=(event:StorageEvent)=>{
@@ -162,12 +182,18 @@ export default function App() {
     return()=>window.removeEventListener("storage",onFence);
   },[revokeLocalAccess]);
   useEffect(()=>{
-    const offline=()=>{setOnline(false);setMustValidate(true);setSharing(false);};
-    const onlineAgain=()=>{setOnline(true);setMustValidate(true);setSharing(false);};
+    const offline=()=>{
+      sessionEpoch.changeScope();
+      setOnline(false);setMustValidate(true);setLastVerifiedAt(null);setSharing(false);
+    };
+    const onlineAgain=()=>{
+      sessionEpoch.changeScope();
+      setOnline(true);setMustValidate(true);setLastVerifiedAt(null);setSharing(false);
+    };
     window.addEventListener("offline",offline);
     window.addEventListener("online",onlineAgain);
     return ()=>{window.removeEventListener("offline",offline);window.removeEventListener("online",onlineAgain);};
-  },[]);
+  },[sessionEpoch]);
   useEffect(()=>{
     const interval=window.setInterval(()=>setClock(Date.now()),5000);
     return()=>window.clearInterval(interval);
@@ -184,7 +210,8 @@ export default function App() {
     let inFlight=false;
     let controller:AbortController|null=null;
     const poll=async()=>{
-      if(cancelled || inFlight)return;
+      const ticket=sessionEpoch.snapshot();
+      if(cancelled || inFlight || !sessionEpoch.isOperational(ticket))return;
       const nextController=new AbortController();
       controller=nextController;
       inFlight=true;
@@ -194,7 +221,7 @@ export default function App() {
           (status,signal)=>api.assignments(orgId,signal,status),
           nextController.signal
         );
-        if(cancelled || nextController.signal.aborted)return;
+        if(cancelled || nextController.signal.aborted || !sessionEpoch.isOperational(ticket))return;
         setRows(result.rows);
         setTotalOccurrences(result.total);
         setActiveCount(result.activeCount);
@@ -204,7 +231,7 @@ export default function App() {
         setMessage(current=>current.startsWith("Atualizando as ocorrências") ||
           current.startsWith("Não foi possível validar as atribuições") ? "" : current);
       } catch(cause) {
-        if(cancelled || nextController.signal.aborted)return;
+        if(cancelled || nextController.signal.aborted || !sessionEpoch.isOperational(ticket))return;
         if(isAccessRevoked(cause)){
           revokeLocalAccess("A central revogou a sessão ou as permissões da equipe. Faça login novamente.");
           return;
@@ -227,7 +254,7 @@ export default function App() {
       controller?.abort();
       window.clearInterval(timer);
     };
-  },[canField,orgId,online,foreground,native,user?.id,user?.teamId,working,refreshSequence,revokeLocalAccess]);
+  },[canField,orgId,online,foreground,native,user?.id,user?.teamId,working,refreshSequence,revokeLocalAccess,sessionEpoch]);
   useEffect(()=>{setNote("");},[selected?.incident.id]);
   useEffect(()=>{
     if(savedUntil===null)return;
@@ -238,54 +265,77 @@ export default function App() {
 
   function refresh() {
     if(!shouldQueryLiveAssignments(canField,online,foreground,native) || !orgId || working)return;
+    sessionEpoch.changeScope();
     setMustValidate(true);setLastVerifiedAt(null);
     setRefreshSequence(current=>current+1);
     setMessage("Atualizando as ocorrências com a central...");
   }
   async function signIn(e:React.FormEvent) {
     e.preventDefault();
+    const ticket=sessionEpoch.snapshot();
     if(logoutPending){setMessage("Confirme o encerramento remoto da sessão antes de entrar.");return;}
     if(native){setMessage("O login no Android exige a etapa de autenticação nativa. Utilize a PWA da central por enquanto.");return;}
     if(working)return;
-    try { assertSessionFenceWritable(window.localStorage); }
-    catch { setMessage("Armazenamento seguro de sessão indisponível. Não é possível iniciar uma sessão neste navegador."); return; }
+    try {
+      assertSessionFenceWritable(window.localStorage);
+      if(hasPendingLogout(window.localStorage)){
+        setLogoutPending(true);
+        revokeLocalAccess("Existe uma saída remota pendente. Confirme o encerramento na central.");
+        return;
+      }
+    } catch {
+      setMessage("Armazenamento seguro de sessão indisponível. Não é possível iniciar uma sessão neste navegador.");
+      return;
+    }
     setWorking(true);setMessage("");
     try {
       await api.login(username.trim(),password);
+      if(!sessionEpoch.isCurrent(ticket))return;
       setPassword("");
       await bootstrap();
-    } catch(cause){setMessage(errorText(cause));}
+    } catch(cause){
+      if(sessionEpoch.isCurrent(ticket))setMessage(errorText(cause));
+    }
     finally{setWorking(false);}
   }
   async function signOut() {
-    setSharing(false);setMustValidate(true);setLastVerifiedAt(null);setWorking(true);
+    // Erase data immediately; remote logout may take seconds or time out.
+    revokeLocalAccess("Encerrando sessão na central...");
+    const ticket=sessionEpoch.snapshot();
+    setWorking(true);
     setLogoutPending(true);
     try { markPendingLogout(window.localStorage); }
     catch { setMessage("Armazenamento indisponível: o encerramento deve ser confirmado na central."); }
     try {
       await api.logout();
+      if(!sessionEpoch.isCurrent(ticket))return;
       clearPendingLogout(window.localStorage);
       setLogoutPending(false);
       setMessage("Sessão encerrada e confirmada na central.");
     } catch {
+      if(!sessionEpoch.isCurrent(ticket))return;
       setLogoutPending(true);
       setMessage("Saída remota não confirmada. A sessão foi bloqueada neste dispositivo. Reconecte e confirme o logout.");
     } finally {
       clearFieldSession();
       setUser(null);setAccess(null);setOrgId(null);setTenant(null);setRows([]);setTotalOccurrences(0);setActiveCount(0);setLastVerifiedAt(null);
       setPassword("");setSelectedId(null);setSavedRows(null);setSavedUntil(null);
-      setPersistOnDevice(false);setWorking(false);
+      setPersistOnDevice(false);
+      if(sessionEpoch.isCurrent(ticket))setWorking(false);
     }
   }
   async function command(fn:()=>Promise<unknown>) {
-    if(!controlsEnabled)return;
+    const ticket=sessionEpoch.snapshot();
+    if(!controlsEnabled || !sessionEpoch.isOperational(ticket))return;
     setWorking(true);setMustValidate(true);setLastVerifiedAt(null);setMessage("");
     try {
       await fn();
+      if(!sessionEpoch.isOperational(ticket))return;
       if(!orgId)throw new Error("Organização não selecionada.");
       const updated=await loadVerifiedTeamSnapshot(
         user?.teamId,(status,signal)=>api.assignments(orgId,signal,status)
       );
+      if(!sessionEpoch.isOperational(ticket))return;
       setRows(updated.rows);
       setTotalOccurrences(updated.total);
       setActiveCount(updated.activeCount);
@@ -294,22 +344,27 @@ export default function App() {
       setNote("");
       setMessage("Ação registrada. Situação atualizada com dados do servidor.");
     } catch(cause) {
+      if(!sessionEpoch.isOperational(ticket))return;
       if(isAccessRevoked(cause)){
         revokeLocalAccess("A central rejeitou a sessão ou as permissões durante a ação. Faça login novamente.");
       } else {
         setMessage("Resultado da ação não confirmado. Consulte a central antes de tentar novamente.");
       }
-    } finally {setWorking(false);}
+    } finally {
+      if(sessionEpoch.isCurrent(ticket))setWorking(false);
+    }
   }
   function saveSummary() {
-    if(!scope || mustValidate || !online || !canField || conflict)return;
+    if(!scope || mustValidate || !online || !canField || conflict || logoutPending ||
+      !sessionEpoch.isOperational(sessionEpoch.snapshot()))return;
     try {
       saveLastAuthorizedAssignments(persistOnDevice?localStorage:sessionStorage,scope,redacted(rows));
       setCopyMessage("Resumo mínimo salvo por até 15 minutos, sem endereços ou dados de GPS.");
     } catch {setCopyMessage("Não foi possível salvar a cópia temporária.");}
   }
   function openSummary() {
-    if(!scope || !canField)return;
+    if(!scope || !canField || logoutPending ||
+      !sessionEpoch.isOperational(sessionEpoch.snapshot()))return;
     try {
       const snapshot=loadAuthorizedAssignmentSnapshot(persistOnDevice?localStorage:sessionStorage,scope);
       setSavedRows(snapshot?.rows??null);
@@ -331,6 +386,7 @@ export default function App() {
       setMessage("Organização não autorizada. Selecione uma organização da sua conta.");
       return;
     }
+    sessionEpoch.changeScope();
     setSharing(false);setMustValidate(true);setLastVerifiedAt(null);setRows([]);setSavedRows(null);
     setSelectedId(null);setPersistOnDevice(false);setOrgId(value);
   }
