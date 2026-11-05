@@ -35,6 +35,15 @@ describe("session epoch: reject async data after identity or team changes",()=>{
     expect(fence.grant(pending)).toBe(false);
     expect(fence.isOperational(fence.snapshot())).toBe(false);
   });
+  it("network notifications during bootstrap do not strand the authentication flow",()=>{
+    const fence=new SessionEpoch();
+    const pending=fence.beginAuthentication();
+    const returned=fence.changeScope();
+    expect(returned).toBe(pending);
+    expect(fence.isCurrent(pending)).toBe(true);
+    expect(fence.grant(pending)).toBe(true);
+    expect(fence.isOperational(pending)).toBe(true);
+  });
   it("team/organization changes preserve current authorization but invalidate old requests",()=>{
     const fence=new SessionEpoch();
     const first=fence.beginAuthentication();
