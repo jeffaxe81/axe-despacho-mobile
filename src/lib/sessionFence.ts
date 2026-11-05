@@ -32,6 +32,15 @@ export function markPendingLogout(storage: FenceStorage) {
     throw new Error("Não foi possível proteger a sessão contra saída não confirmada.");
   }
 }
+/**
+ * A storage event is emitted in other same-origin tabs when the logout marker
+ * is written. A removal event never unlocks an existing field session.
+ */
+export function shouldRevokeForLogoutFenceEvent(
+  key:string|null,newValue:string|null
+):boolean {
+  return key===PENDING_LOGOUT_KEY && newValue!==null;
+}
 export function hasPendingLogout(storage: FenceStorage) {
   // Corrupted/unknown markers must never silently turn a pending logout into
   // an authorized cookie-backed session. Only an ABSENT marker is unlocked.
