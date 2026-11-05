@@ -16,6 +16,13 @@ function endpoint(path:string):URL {
   assertNativeApiAuthenticationReady(Capacitor.isNativePlatform());
   if (!/^[a-zA-Z][a-zA-Z0-9_.]*$/.test(path)) throw new ApiError("Procedimento de API inválido.");
   const url = new URL("/api/trpc/" + path, window.location.origin);
+  // Passwords and HttpOnly cookies must never traverse a plaintext network.
+  // Only explicit loopback HTTP is permitted for local Vite development.
+  const localHttp = url.protocol === "http:" &&
+    (url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]");
+  if (url.protocol !== "https:" && !localHttp) {
+    throw new ApiError("Conexão insegura: a central exige HTTPS fora do ambiente local.", "INSECURE_TRANSPORT");
+  }
   const configured = import.meta.env.VITE_DISPATCH_API_BASE?.trim();
   // Existing server session cookies must remain same-origin. Cross-origin
   // native authentication requires a new audited contract, not a CORS bypass.
@@ -43,7 +50,9 @@ async function rpc<T>(method:"GET"|"POST",path:string,input?:unknown,organizatio
   const timeout=setTimeout(()=>controller.abort(),method==="GET"?12_000:20_000);
   try {
     const response=await fetch(url.toString(),{
-      method,headers,credentials:"include",signal:controller.signal,
+      // A 307/308 redirect can replay a POST body (including credentials) to
+      // another origin; any redirect is therefore rejected instead of followed.
+      method,headers,credentials:"include",redirect:"error",signal:controller.signal,
       ...(method==="POST"?{body:JSON.stringify(serialized)}:{})
     });
     let payload:RpcEnvelope;

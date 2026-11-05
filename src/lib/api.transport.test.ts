@@ -5,8 +5,8 @@ import {api,ApiError} from "./api";
 
 afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks();});
 describe("authenticated field queries",()=>{
-  const prepare=()=>{
-    vi.stubGlobal("window",{location:{origin:"https://central.example"}});
+  const prepare=(origin="https://central.example")=>{
+    vi.stubGlobal("window",{location:{origin}});
     vi.spyOn(Capacitor,"isNativePlatform").mockReturnValue(false);
   };
   it("uses same-origin cookie, tenant-scoped read and SuperJSON",async()=>{
@@ -21,6 +21,48 @@ describe("authenticated field queries",()=>{
     expect(new URL(url).pathname).toBe("/api/trpc/incidents.list");
     expect((options.headers as Record<string,string>)["x-organization-id"]).toBe("8");
     expect(options.credentials).toBe("include");
+  });
+  it.each(["http://central.example","http://192.168.1.50:5173","file://"])(
+    "refuses cookie-backed API over insecure origin %s before network access",async(origin)=>{
+      prepare(origin);
+      const fetchMock=vi.fn();
+      vi.stubGlobal("fetch",fetchMock);
+      await expect(api.login("agent","example-password")).rejects.toMatchObject({code:"INSECURE_TRANSPORT"});
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+  );
+  it.each(["http://localhost:5173","http://127.0.0.1:5173","http://[::1]:5173"])(
+    "allows loopback HTTP strictly for local development: %s",async(origin)=>{
+      prepare(origin);
+      const fetchMock=vi.fn().mockResolvedValue({
+        ok:true,status:200,json:async()=>({result:{data:superjson.serialize(null)}})
+      });
+      vi.stubGlobal("fetch",fetchMock);
+      await expect(api.me()).resolves.toBeNull();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect((fetchMock.mock.calls[0][1] as RequestInit).redirect).toBe("error");
+    }
+  );
+  it("rejects automatic redirects of credential-bearing login requests",async()=>{
+    prepare();
+    const fetchMock=vi.fn().mockResolvedValue({
+      ok:true,status:200,json:async()=>({result:{data:superjson.serialize({})}})
+    });
+    vi.stubGlobal("fetch",fetchMock);
+    await api.login("agent","example-password");
+    const [url,options]=fetchMock.mock.calls[0] as [string,RequestInit];
+    expect(new URL(url).origin).toBe("https://central.example");
+    expect(options.credentials).toBe("include");
+    expect(options.redirect).toBe("error");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it("does not retry a rejected redirect or ambiguous HTTP failure",async()=>{
+    prepare();
+    const fetchMock=vi.fn().mockRejectedValue(new TypeError("fetch redirect rejected"));
+    vi.stubGlobal("fetch",fetchMock);
+    await expect(api.login("agent","example-password")).rejects.toMatchObject({code:"NETWORK_ERROR"});
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((fetchMock.mock.calls[0][1] as RequestInit).redirect).toBe("error");
   });
   it("sends a team active-status filter supported by the central",async()=>{
     prepare();

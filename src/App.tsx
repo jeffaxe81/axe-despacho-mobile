@@ -10,7 +10,7 @@ import { useFieldLocation } from "./hooks/useFieldLocation";
 import { useForegroundLifecycle } from "./hooks/useForegroundLifecycle";
 import { AndroidGpsLab } from "./components/AndroidGpsLab";
 import { AndroidFieldDemo } from "./components/AndroidFieldDemo";
-import { PENDING_LOGOUT_KEY,markPendingLogout,hasPendingLogout,clearPendingLogout,assertSessionFenceWritable } from "./lib/sessionFence";
+import { markPendingLogout,hasPendingLogout,clearPendingLogout,assertSessionFenceWritable,shouldRevokeForLogoutFenceEvent } from "./lib/sessionFence";
 import { loadVerifiedTeamSnapshot } from "./lib/teamSnapshot";
 import { ApiError } from "./lib/api";
 import { isAccessRevoked } from "./lib/sessionAccess";
@@ -152,7 +152,8 @@ export default function App() {
   useEffect(()=>{void bootstrap();},[bootstrap]);
   useEffect(()=>{
     const onFence=(event:StorageEvent)=>{
-      if(event.key!==PENDING_LOGOUT_KEY || event.newValue!=="pending")return;
+      // Any non-null fence value (including malformed values) blocks this tab.
+      if(!shouldRevokeForLogoutFenceEvent(event.key,event.newValue))return;
       // Another tab requested logout. Revoke operational UI in this tab too.
       setLogoutPending(true);
       revokeLocalAccess("Outra aba solicitou a saída. A sessão de campo foi bloqueada.");
