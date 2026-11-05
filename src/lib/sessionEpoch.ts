@@ -37,7 +37,10 @@ export class SessionEpoch {
   }
 
   changeScope(): symbol {
-    this.epoch = Symbol("field-scope");
+    // A network/visibility notification during initial login must not cancel
+    // authentication and leave the initial loading view stranded. Until the
+    // server grants the identity, no operational snapshot exists to invalidate.
+    if (this.authorized) this.epoch = Symbol("field-scope");
     return this.epoch;
   }
 
