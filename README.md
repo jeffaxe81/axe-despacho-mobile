@@ -119,3 +119,7 @@ Uma consulta sem filtro retorna até 50 ocorrências. Não é seguro concluir qu
 As quatro respostas são validadas pelo mesmo ID de equipe; status filtrados devem coincidir com o filtro, identificadores ativos não podem se repetir, versões do mesmo incidente devem ser consistentes e as páginas de 50 precisam respeitar a contagem total. Se uma ocorrência ativa não estiver na página geral, ela aparece no topo da lista do agente. Se a contagem global indicar duas ou mais ocorrências ativas, GPS e mutações são bloqueados. Qualquer falha ou inconsistência entre consultas bloqueia os comandos até revalidação.
 
 **Limitação importante:** respostas de consultas paralelas não são uma fotografia transacional da base. As verificações eliminam inconsistências observáveis, mas a confirmação atômica de versões/contagens dependerá de contrato específico no backend. O APK nativo continua em modo laboratório até autenticação segura e homologação com a central.
+
+## Proteção adicional do transporte da API — pré-produção (05/11/2026)
+
+A PWA recusa login, leitura, mutação ou GPS por HTTP remoto/LAN. Somente HTTPS e HTTP de loopback para desenvolvimento local são aceitos. Requisições autenticadas não seguem redirecionamentos HTTP, prevenindo retransmissão automática de senhas ou ações POST a destinos inesperados. Estas medidas são apenas uma defesa adicional: a autenticação nativa e o GPS operacional continuam bloqueados, e nenhuma liberação de produção foi realizada. Veja [política de transporte e testes](docs/SEGURANCA_TRANSPORTE.md).
