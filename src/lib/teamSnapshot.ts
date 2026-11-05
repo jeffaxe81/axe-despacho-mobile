@@ -12,8 +12,13 @@ function invalid(reason:string): never {
 }
 function sameIncident(a:AssignmentRow,b:AssignmentRow):boolean {
   const x=a.incident,y=b.incident;
+  // A concurrent update of details, not only the status, can leave a
+  // misleading view of an incident's address/category/priority. Treat any
+  // mismatch within the returned first-page overlap as an unverified read.
   return x.id===y.id && x.status===y.status && x.statusRevision===y.statusRevision &&
-    x.assignedTeamId===y.assignedTeamId && x.code===y.code;
+    x.assignedTeamId===y.assignedTeamId && x.code===y.code &&
+    x.priority===y.priority && x.category===y.category &&
+    x.address===y.address && x.description===y.description;
 }
 
 /**
@@ -55,7 +60,9 @@ export async function loadVerifiedTeamSnapshot(
     return verified;
   });
   const activeCount=statuses.reduce((acc,p)=>acc+p.total,0);
-  if(!Number.isSafeInteger(activeCount))invalid("Contagem ativa inválida.");
+  if(!Number.isSafeInteger(activeCount) || activeCount>main.total){
+    invalid("Quantidade de ocorrências ativas excede o total da equipe.");
+  }
 
   const activeRows=statuses.flatMap(p=>p.rows);
   const activeIndex=new Map<number,AssignmentRow>();
@@ -64,6 +71,12 @@ export async function loadVerifiedTeamSnapshot(
     activeIndex.set(row.incident.id,row);
   }
   const seen=new Map(main.rows.map(row=>[row.incident.id,row]));
+  // If the whole team fits in one page, filtered active incidents MUST
+  // already be present in that same page. A fabricated/stale extra active row
+  // cannot be treated as an authorized assignment in this case.
+  if(main.total<=50 && activeRows.some(row=>!seen.has(row.incident.id))){
+    invalid("Filtro ativo retornou ocorrência ausente da listagem completa da equipe.");
+  }
   for(const row of main.rows){
     const filtered=activeIndex.get(row.incident.id);
     if(filtered && !sameIncident(row,filtered)){
