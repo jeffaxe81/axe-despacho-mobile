@@ -152,7 +152,8 @@ export default function App() {
   useEffect(()=>{void bootstrap();},[bootstrap]);
   useEffect(()=>{
     const onFence=(event:StorageEvent)=>{
-      if(event.key!==PENDING_LOGOUT_KEY || event.newValue!=="pending")return;
+      // Any non-null fence value (including malformed values) blocks this tab.
+      if(event.key!==PENDING_LOGOUT_KEY || event.newValue===null)return;
       // Another tab requested logout. Revoke operational UI in this tab too.
       setLogoutPending(true);
       revokeLocalAccess("Outra aba solicitou a saída. A sessão de campo foi bloqueada.");
