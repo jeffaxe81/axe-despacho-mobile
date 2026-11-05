@@ -23,3 +23,7 @@
 
 Não reportar conclusão de release sem CI verde, testes de dispositivo e validação real com servidor e contas de agentes. O repositório da central `dispatch` mantém seu PR independente.
 
+
+## Auditoria de consistência das atribuições
+
+Novo gate local de consistência: o total de ocorrências ativas nunca pode superar o total geral; se a equipe possui até 50 ocorrências, todas as ocorrências ativas retornadas por filtros devem existir na página geral; divergências de dados de um mesmo incidente entre as quatro consultas exigem revalidação e bloqueiam comandos/GPS. Testes de regressão incluem casos válidos de limite de página e resultados contraditórios. A consistência transacional atômica da central ainda depende de suporte no backend e testes integrados.
