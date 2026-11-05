@@ -125,3 +125,12 @@ As quatro respostas são validadas pelo mesmo ID de equipe; status filtrados dev
 O cliente agora rejeita um conjunto de respostas em que a soma de ocorrências ativas seja maior que o total declarado da equipe. Quando a consulta geral contém **todas** as ocorrências (até 50), cada item ativo dos filtros precisa estar presente nessa mesma página. Uma ocorrência filtrada mas ausente da lista completa é sinalizada como `INCONSISTENT_TEAM_SNAPSHOT`, sem habilitar comandos ou GPS. Também são detectadas diferenças de código, prioridade, categoria, endereço e descrição entre as consultas de um mesmo incidente, além do estado e da revisão já validados.
 
 Este endurecimento detecta contradições de contagem e conteúdo, mas **não transforma consultas paralelas em uma transação atômica**. A autorização operacional definitiva continua no servidor; a autenticação nativa e os testes reais de campo continuam pendentes.
+
+
+## Proteções adicionais de transporte e sessão (05/11/2026)
+
+As requisições autenticadas da PWA exigem HTTPS. HTTP é admitido somente no loopback local (`localhost`, `127.0.0.1`, `[::1]`) para desenvolvimento; não são permitidos HTTP em LAN, domínios remotos ou `file://`. A API opera na mesma origem, com `redirect: "error"`, evitando o encaminhamento automático do corpo de logins e mutações por redirects 307/308. Veja [Política de transporte](docs/SEGURANCA_TRANSPORTE.md).
+
+Qualquer marcador presente na chave local de logout pendente, inclusive valores corrompidos ou vazios, impede reaproveitar o cookie da sessão; o evento de outra aba também revoga os dados operacionais no cliente. O Vite está restrito a `127.0.0.1`, e seu proxy de desenvolvimento permite apenas alvos explícitos de loopback sem credenciais nem caminhos extras, mantendo verificação TLS ativa para HTTPS. Veja [Segurança de sessão e desenvolvimento](docs/SEGURANCA_SESSAO_DESENVOLVIMENTO.md).
+
+**Escopo:** endurecimento do cliente e do ambiente de desenvolvimento, não autenticação nativa, não implantação em produção e não liberação de rastreamento GPS operacional. As issues #4/#5, a auditoria de cookies/CSRF na central e a homologação em dispositivos físicos continuam pendentes.
