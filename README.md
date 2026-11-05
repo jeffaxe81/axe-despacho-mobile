@@ -134,3 +134,9 @@ As requisições autenticadas da PWA exigem HTTPS. HTTP é admitido somente no l
 Qualquer marcador presente na chave local de logout pendente, inclusive valores corrompidos ou vazios, impede reaproveitar o cookie da sessão; o evento de outra aba também revoga os dados operacionais no cliente. O Vite está restrito a `127.0.0.1`, e seu proxy de desenvolvimento permite apenas alvos explícitos de loopback sem credenciais nem caminhos extras, mantendo verificação TLS ativa para HTTPS. Veja [Segurança de sessão e desenvolvimento](docs/SEGURANCA_SESSAO_DESENVOLVIMENTO.md).
 
 **Escopo:** endurecimento do cliente e do ambiente de desenvolvimento, não autenticação nativa, não implantação em produção e não liberação de rastreamento GPS operacional. As issues #4/#5, a auditoria de cookies/CSRF na central e a homologação em dispositivos físicos continuam pendentes.
+
+## Ciclo de seis frentes — isolamento de sessão e preparação Android
+
+O cliente utiliza agora um **ticket de sessão volátil** que impede respostas antigas de autenticação, consultas de ocorrências e mutações de restabelecerem dados após logout, revogação ou troca de organização. As consultas e o GPS permanecem dependentes das autorizações reais da central; a autenticação nativa Android continua bloqueada até existir contrato específico no backend. Foram incluídos testes de corrida assíncrona e uma bateria que tenta executar todas as operações autenticadas na WebView nativa, confirmando que nenhuma chega à rede.
+
+Consulte [plano técnico das seis especialidades e contrato nativo proposto](docs/SEIS_FRENTES_SESSAO_NATIVA.md) para o que foi implementado, os testes e os riscos que ainda impedem a homologação.
