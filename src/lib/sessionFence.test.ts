@@ -41,6 +41,27 @@ describe("session logout fence protects web client after remote logout failure",
     expect(()=>clearPendingLogout(cannotRemove)).toThrow();
   });
 
+  it.each(["", "corrupted", "pending ", "0", "cleared", "{}", "PENDING"])(
+    "blocks a session when logout marker has unknown value: %s",(unexpected)=>{
+      const local=store();
+      local.setItem(PENDING_LOGOUT_KEY,unexpected);
+      expect(hasPendingLogout(local)).toBe(true);
+      expect(()=>assertSessionFenceWritable(local)).not.toThrow();
+      expect(hasPendingLogout(local)).toBe(true);
+      clearPendingLogout(local);
+      expect(local.getItem(PENDING_LOGOUT_KEY)).toBeNull();
+      expect(hasPendingLogout(local)).toBe(false);
+    }
+  );
+  it("rejects a storage backend that silently keeps a corrupted marker after clear",()=>{
+    const sticky={
+      getItem:(key:string)=>key===PENDING_LOGOUT_KEY?"corrupted":null,
+      setItem:(_key:string,_value:string)=>{},
+      removeItem:(_key:string)=>{},
+    };
+    expect(hasPendingLogout(sticky)).toBe(true);
+    expect(()=>clearPendingLogout(sticky)).toThrow(/Encerramento/);
+  });
   it("persists a pending-logout flag across app views without storing credentials",()=>{
     const local=store();
     markPendingLogout(local);
