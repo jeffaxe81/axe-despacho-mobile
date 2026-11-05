@@ -38,6 +38,9 @@ export async function loadVerifiedTeamSnapshot(
   if(signal?.aborted)throw new ApiError("Consulta cancelada.","ABORTED");
 
   const main=validateAssignmentResult(rawMain,teamId);
+  if(main.rows.length !== Math.min(50,main.total)){
+    invalid("A central devolveu uma primeira página incompleta da equipe.");
+  }
   const statuses=rawActive.map((payload,index)=>{
     const verified=validateAssignmentResult(payload,teamId);
     const expected=FIELD_ACTIVE_STATUSES[index];
