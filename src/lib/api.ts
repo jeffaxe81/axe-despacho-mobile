@@ -91,12 +91,13 @@ export const api = {
   },
   tenant:()=>rpc<TenantSelection>("GET","tenant.selection"),
   access:()=>rpc<Access>("GET","access.me"),
-  assignments:(orgId:number,signal?:AbortSignal)=>rpc<AssignmentResult>("GET","incidents.list",{page:1,pageSize:50},orgId,signal),
+  assignments:(orgId:number,signal?:AbortSignal,status?:IncidentStatus)=>
+    rpc<AssignmentResult>("GET","incidents.list",{page:1,pageSize:50,...(status?{status}:{})},orgId,signal),
   respond:(orgId:number,incidentId:number,accepted:boolean)=>
     rpc<unknown>("POST","incidents.respondToAssignment",{incidentId,accepted},orgId),
   transition:(orgId:number,incidentId:number,expectedStatus:IncidentStatus,nextStatus:IncidentStatus,note:string,revision?:number)=>
     rpc<unknown>("POST","incidents.transition",{
-      incidentId,expectedStatus,nextStatus,note,...(revision?{expectedStatusRevision:revision}:{})
+      incidentId,expectedStatus,nextStatus,note,...(revision!==undefined?{expectedStatusRevision:revision}:{})
     },orgId),
   recordPosition:(orgId:number,teamId:number,position:{latitude:number;longitude:number;accuracyMeters?:number;capturedAt:Date})=>
     rpc<unknown>("POST","teams.recordLocation",{teamId,...position},orgId)
