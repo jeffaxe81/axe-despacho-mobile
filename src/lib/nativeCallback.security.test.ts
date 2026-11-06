@@ -15,7 +15,7 @@ describe("native OAuth callback bridge remains offline and fail-closed",()=>{
   const workflow=file(".github/workflows/android-debug.yml");
   const policy=file("native/android/AxeNativeAuthPolicy.java");
   const lab=file("native/android/AxeNativeAuthLabPlugin.java");
-  const main=file("src/App.tsx");
+  const webApi=file("src/lib/api.ts");
 
   it("never unlocks authenticated Android API methods",()=>{
     expect(()=>assertNativeApiAuthenticationReady(true)).toThrow();
@@ -62,7 +62,7 @@ describe("native OAuth callback bridge remains offline and fail-closed",()=>{
     expect(lab).not.toMatch(/response\.put\(\s*"(?:code|verifier|codeVerifier|token|handle|refreshToken)"/i);
     expect(validator).not.toContain("JSObject");
     expect(validator).not.toContain("PluginCall");
-    expect(main).toContain("NATIVE_AUTH_PENDING");
+    expect(webApi).toContain("NATIVE_AUTH_PENDING");
   });
   it("marks encrypted native session data as excluded from APK backup",()=>{
     expect(installer).toContain('android:allowBackup="false"');
