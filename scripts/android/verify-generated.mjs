@@ -12,6 +12,7 @@ const manifestPath = resolve(root, "android/app/src/main/AndroidManifest.xml");
 check(existsSync(manifestPath), "Projeto Android não criado. Rode npx cap add android.");
 const manifest = readFileSync(manifestPath, "utf8");
 check(/<application\b/.test(manifest), "AndroidManifest sem application.");
+check(/<application\b[^>]*android:allowBackup\s*=\s*["']false["']/.test(manifest), "Backup Android deve permanecer desabilitado para o cofre nativo.");
 check(!/usesCleartextTraffic\s*=\s*["']true["']/.test(manifest), "Tráfego HTTP liberado indevidamente.");
 check(!/ACCESS_BACKGROUND_LOCATION/.test(manifest), "Permissão GPS background antecipada sem serviço homologado.");
 check(/android:foregroundServiceType\s*=\s*["']location["']/.test(manifest), "GPS laboratório sem foregroundServiceType location.");
@@ -21,11 +22,14 @@ check(/android\.permission\.FOREGROUND_SERVICE_LOCATION/.test(manifest), "Permis
 const javaPath = resolve(root,"android/app/src/main/java/com/axesistemas/axedespacho");
 check(existsSync(resolve(javaPath,"AxeLocationLabService.java")), "Serviço Java laboratório ausente.");
 check(existsSync(resolve(javaPath,"AxeLocationLabPlugin.java")), "Plugin Java laboratório ausente.");
-for (const nativeClass of ["AxeNativeAuthPolicy.java", "AxeNativeSessionVault.java", "AxeNativeAuthLabPlugin.java"]) {
+for (const nativeClass of ["AxeNativeAuthPolicy.java", "AxeNativeSessionVault.java", "AxeNativeAuthLabPlugin.java", "AxeNativeCallbackGuard.java"]) {
   check(existsSync(resolve(javaPath,nativeClass)), "Classe nativa de autenticação laboratório ausente: "+nativeClass);
 }
 const nativeAuthPolicy=readFileSync(resolve(javaPath,"AxeNativeAuthPolicy.java"),"utf8");
 check(/OPERATIONAL_LOGIN_ENABLED\s*=\s*false\s*;/.test(nativeAuthPolicy), "Login Android não pode ser ativado neste ciclo.");
+const callbackGuard=readFileSync(resolve(javaPath,"AxeNativeCallbackGuard.java"),"utf8");
+check(callbackGuard.includes("validateAndConsume("), "Validação nativa do callback OAuth ausente.");
+check(callbackGuard.includes("PendingAttempt"), "Proteção antirreplay nativa ausente.");
 const nativeLab=readFileSync(resolve(javaPath,"AxeNativeAuthLabPlugin.java"),"utf8");
 check(/@CapacitorPlugin\(name\s*=\s*"AxeNativeAuthLab"\)/.test(nativeLab), "Nome do plugin PKCE divergente.");
 check(!/response\.put\(\s*"(?:verifier|codeVerifier|token|accessToken|refreshToken|sessionHandle|secret)"/i.test(nativeLab), "PKCE e segredos não podem ser exportados à WebView.");

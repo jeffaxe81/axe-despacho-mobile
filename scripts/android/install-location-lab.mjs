@@ -24,7 +24,15 @@ export function injectLocationLabManifest(manifest) {
   if (!manifest.includes('xmlns:android="http://schemas.android.com/apk/res/android"')) {
     throw new Error("Namespace Android ausente.");
   }
-  let output = manifest;
+  // Refuse to include the future encrypted native vault or incident summaries
+  // in Android cloud backup. Keystore keys are device-bound and un-restorable.
+  // We only modify the <application> start tag, never arbitrary XML text.
+  let output = manifest.replace(/<application\b([^>]*)>/, (startTag) => {
+    if (/android:allowBackup\s*=/.test(startTag)) {
+      return startTag.replace(/android:allowBackup\s*=\s*["'][^"']*["']/, 'android:allowBackup="false"');
+    }
+    return startTag.replace(/<application\b/, '<application android:allowBackup="false"');
+  });
   for (const permission of REQUIRED_PERMISSIONS) {
     if (!output.includes(`android:name="${permission}"`)) {
       output = output.replace(/<application\b/, `<uses-permission android:name="${permission}" />\n    <application`);
@@ -70,7 +78,8 @@ export function installLocationLab(root = process.cwd()) {
   const updatedMain = generatedMainActivity();
   mkdirSync(javaDir, {recursive:true});
   for (const source of ["AxeLocationLabPlugin.java","AxeLocationLabService.java",
-    "AxeNativeAuthPolicy.java", "AxeNativeSessionVault.java", "AxeNativeAuthLabPlugin.java"]) {
+    "AxeNativeAuthPolicy.java", "AxeNativeSessionVault.java", "AxeNativeAuthLabPlugin.java",
+    "AxeNativeCallbackGuard.java"]) {
     const from = resolve(root,"native/android",source);
     if (!existsSync(from)) throw new Error("Arquivo Java do laboratório ausente: "+source);
     copyFileSync(from,resolve(javaDir,source));

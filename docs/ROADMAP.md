@@ -42,3 +42,11 @@ Novo gate local de consistência: o total de ocorrências ativas nunca pode supe
 - Cofre Android Keystore AES-GCM implementado como classe de uso exclusivo nativo, mas ainda **não armazena handles operacionais** nem possui ponte JavaScript para senhas/tokens.
 - Verificação do APK impede ativação do login operacional, App Link sem domínio aprovado e exposição de credenciais. [Contrato e limitações](ANDROID_NATIVE_AUTH_LAB.md).
 - Próximos gates: servidor OAuth/PKCE aprovado no `dispatch`, App Links verificados, troca nativa auditada, credenciais protegidas, revisão de segurança e testes Android 14–16 reais; GPS produção continua bloqueado.
+
+## Retorno nativo OAuth — contrato de segurança (sem habilitar login)
+
+- Incluído `AxeNativeCallbackGuard.java`, que verifica URL HTTPS exata, emissor `iss`, `state` de uso único, prazo de 5 minutos e impede replay/duplicidade; o callback ainda **não** está conectado ao aplicativo nem ao servidor.
+- Criado teste nativo executado em Java 21 no workflow Android, incluindo URLs hostis e 32 tentativas concorrentes.
+- O instalador Android desativa o backup automático (`android:allowBackup=false`), preservando o bloqueio de App Links não verificados.
+- Referência técnica: [validação nativa de retorno OAuth](ANDROID_NATIVE_CALLBACK_GUARD.md).
+- Aguardam domínio oficial da central, assinatura/assetlinks, implementação auditada do navegador do sistema, troca de código/token apenas nativa e testes de dispositivo físico. `NATIVE_AUTH_PENDING` permanece ativo.
