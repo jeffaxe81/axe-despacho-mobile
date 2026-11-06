@@ -88,7 +88,7 @@ public final class AxeNativeCallbackGuardHarness {
             callback().replace("https://app.example.test","https://APP.EXAMPLE.TEST"),
             callback().replace("?code=", "?code=xyz&code="),
             callback().replace("&iss=", "&iss=https%3A%2F%2Fidentity.example.test%2Fadmin&again="),
-            callback().replace("&iss=", "&iss="),
+            callback().substring(0, callback().indexOf("&iss=")),
             callback().replace("code="+CODE,"code="+("a".repeat(257))),
             callback().replace("code="+CODE,"code="+("a".repeat(31))),
             callback().replace("code="+CODE,"code=../../../etc/passwd"),
