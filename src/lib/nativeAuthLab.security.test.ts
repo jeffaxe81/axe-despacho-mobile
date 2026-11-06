@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { assertNativeApiAuthenticationReady } from "./api";
-import { generatedMainActivity } from "../../scripts/android/install-location-lab.mjs";
+
 
 function native(name:string):string {
   return readFileSync(resolve(process.cwd(),"native/android",name),"utf8");
@@ -74,7 +74,7 @@ describe("Android native auth offline lab safety contract",()=>{
     expect(java).toContain("AxeNativeSessionVault.clear(getContext())");
   });
   it("installs and registers both GPS and PKCE plugins",()=>{
-    const activity=generatedMainActivity();
+    const activity=androidInstaller;
     expect(activity).toContain("registerPlugin(AxeLocationLabPlugin.class)");
     expect(activity).toContain("registerPlugin(AxeNativeAuthLabPlugin.class)");
     for(const file of ["AxeNativeAuthPolicy.java","AxeNativeSessionVault.java","AxeNativeAuthLabPlugin.java"]){
