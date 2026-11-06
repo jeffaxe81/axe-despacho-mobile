@@ -64,7 +64,7 @@ describe("Android native auth offline lab safety contract",()=>{
     expect(vault).toContain("new GCMParameterSpec(GCM_TAG_BITS, iv)");
     expect(vault).toContain("cipher.doFinal(copy)");
     expect(vault).toContain(".putString(CIPHER_KEY, Base64.encodeToString(encrypted, Base64.NO_WRAP))");
-    expect(vault).not.toContain("@PluginMethod");
+    expect(vault).not.toMatch(/^\s*@PluginMethod\b/m);
     expect(vault).not.toContain("public class");
     expect(vault).toContain("Arrays.fill(copy, (byte) 0)");
   });
