@@ -78,7 +78,8 @@ export function installLocationLab(root = process.cwd()) {
   const updatedMain = generatedMainActivity();
   mkdirSync(javaDir, {recursive:true});
   for (const source of ["AxeLocationLabPlugin.java","AxeLocationLabService.java",
-    "AxeNativeAuthPolicy.java", "AxeNativeSessionVault.java", "AxeNativeAuthLabPlugin.java",\n    "AxeNativeCallbackGuard.java"]) {
+    "AxeNativeAuthPolicy.java", "AxeNativeSessionVault.java", "AxeNativeAuthLabPlugin.java",
+    "AxeNativeCallbackGuard.java"]) {
     const from = resolve(root,"native/android",source);
     if (!existsSync(from)) throw new Error("Arquivo Java do laboratório ausente: "+source);
     copyFileSync(from,resolve(javaDir,source));
