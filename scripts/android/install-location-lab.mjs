@@ -46,6 +46,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(AxeLocationLabPlugin.class);
+        registerPlugin(AxeNativeAuthLabPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
@@ -68,7 +69,8 @@ export function installLocationLab(root = process.cwd()) {
   const updatedManifest = injectLocationLabManifest(manifest);
   const updatedMain = generatedMainActivity();
   mkdirSync(javaDir, {recursive:true});
-  for (const source of ["AxeLocationLabPlugin.java","AxeLocationLabService.java"]) {
+  for (const source of ["AxeLocationLabPlugin.java","AxeLocationLabService.java",
+    "AxeNativeAuthPolicy.java", "AxeNativeSessionVault.java", "AxeNativeAuthLabPlugin.java"]) {
     const from = resolve(root,"native/android",source);
     if (!existsSync(from)) throw new Error("Arquivo Java do laboratório ausente: "+source);
     copyFileSync(from,resolve(javaDir,source));
@@ -76,7 +78,7 @@ export function installLocationLab(root = process.cwd()) {
   writeFileSync(mainPath,updatedMain);
   mkdirSync(dirname(manifestPath),{recursive:true});
   writeFileSync(manifestPath,updatedManifest);
-  console.log("Plugin Android GPS LAB instalado no projeto gerado; sem rede e sem persistência de coordenadas.");
+  console.log("Plugins Android GPS e PKCE LAB instalados; sem login nativo, rede ou tokens expostos à WebView.");
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
