@@ -18,6 +18,19 @@ describe("instalação do GPS nativo de laboratório",()=>{
     expect(()=>injectLocationLabManifest("<manifest/>")).toThrow();
     expect(()=>injectLocationLabManifest(manifest.replace("<application","<uses-permission android:name=\"android.permission.ACCESS_BACKGROUND_LOCATION\"/><application"))).toThrow();
   });
+  it("desativa o backup Android inclusive quando o template permitir backup",()=>{
+    const unsafe = manifest.replace('android:allowBackup="false"', 'android:allowBackup="true"');
+    const updated = injectLocationLabManifest(unsafe);
+    expect(updated).toContain('android:allowBackup="false"');
+    expect(updated).not.toContain('android:allowBackup="true"');
+    expect(injectLocationLabManifest(updated)).toBe(updated);
+  });
+  it("adiciona allowBackup=false se o AndroidManifest não declarar a política",()=>{
+    const without = manifest.replace(' android:allowBackup="false"', "");
+    const updated=injectLocationLabManifest(without);
+    expect(updated).toContain('android:allowBackup="false"');
+    expect(injectLocationLabManifest(updated)).toBe(updated);
+  });
   it("registra o plugin no MainActivity gerado",()=>{
     expect(generatedMainActivity()).toContain("registerPlugin(AxeLocationLabPlugin.class)");
   });
