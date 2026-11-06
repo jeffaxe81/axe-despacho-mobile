@@ -27,11 +27,11 @@ export function injectLocationLabManifest(manifest) {
   // Refuse to include the future encrypted native vault or incident summaries
   // in Android cloud backup. Keystore keys are device-bound and un-restorable.
   // We only modify the <application> start tag, never arbitrary XML text.
-  let output = manifest.replace(/<application\\b([^>]*)>/, (startTag) => {
-    if (/android:allowBackup\\s*=/.test(startTag)) {
-      return startTag.replace(/android:allowBackup\\s*=\\s*["'][^"']*["']/, 'android:allowBackup="false"');
+  let output = manifest.replace(/<application\b([^>]*)>/, (startTag) => {
+    if (/android:allowBackup\s*=/.test(startTag)) {
+      return startTag.replace(/android:allowBackup\s*=\s*["'][^"']*["']/, 'android:allowBackup="false"');
     }
-    return startTag.replace(/<application\\b/, '<application android:allowBackup="false"');
+    return startTag.replace(/<application\b/, '<application android:allowBackup="false"');
   });
   for (const permission of REQUIRED_PERMISSIONS) {
     if (!output.includes(`android:name="${permission}"`)) {
