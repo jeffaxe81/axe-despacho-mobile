@@ -10,6 +10,7 @@ import { useFieldLocation } from "./hooks/useFieldLocation";
 import { useForegroundLifecycle } from "./hooks/useForegroundLifecycle";
 import { AndroidGpsLab } from "./components/AndroidGpsLab";
 import { AndroidFieldDemo } from "./components/AndroidFieldDemo";
+import { AndroidAuthLab } from "./components/AndroidAuthLab";
 import { markPendingLogout,hasPendingLogout,clearPendingLogout,assertSessionFenceWritable,shouldRevokeForLogoutFenceEvent } from "./lib/sessionFence";
 import { loadVerifiedTeamSnapshot } from "./lib/teamSnapshot";
 import { ApiError } from "./lib/api";
@@ -417,6 +418,7 @@ export default function App() {
       </form><p className="hint">Para acesso web, publique sob a mesma origem HTTPS da API. O acesso nativo exige integração adicional de autenticação.</p></section>}
       {native&&<section className="panel login-panel"><h2>Android · prévia técnica</h2><p>O APK de desenvolvimento permite validar instalação, layout e inicialização da WebView. Para operar ocorrências, utilize por enquanto a versão web da central em HTTPS.</p><p className="hint">Não use este APK para atendimento real. A próxima integração será a autenticação do dispositivo com credenciais protegidas e escopo de equipe.</p></section>}
       {native&&<AndroidFieldDemo />}
+      {native&&<AndroidAuthLab />}
       {native&&<AndroidGpsLab />}
       {user&&tenant&&tenant.organizations.length>0&&<section className="panel">
         <div className="section-head"><h2>Equipe e organização</h2><span className="pill">{user.name}</span></div>

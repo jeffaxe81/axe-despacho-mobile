@@ -21,9 +21,21 @@ check(/android\.permission\.FOREGROUND_SERVICE_LOCATION/.test(manifest), "Permis
 const javaPath = resolve(root,"android/app/src/main/java/com/axesistemas/axedespacho");
 check(existsSync(resolve(javaPath,"AxeLocationLabService.java")), "Serviço Java laboratório ausente.");
 check(existsSync(resolve(javaPath,"AxeLocationLabPlugin.java")), "Plugin Java laboratório ausente.");
+for (const nativeClass of ["AxeNativeAuthPolicy.java", "AxeNativeSessionVault.java", "AxeNativeAuthLabPlugin.java"]) {
+  check(existsSync(resolve(javaPath,nativeClass)), "Classe nativa de autenticação laboratório ausente: "+nativeClass);
+}
+const nativeAuthPolicy=readFileSync(resolve(javaPath,"AxeNativeAuthPolicy.java"),"utf8");
+check(/OPERATIONAL_LOGIN_ENABLED\s*=\s*false\s*;/.test(nativeAuthPolicy), "Login Android não pode ser ativado neste ciclo.");
+const nativeLab=readFileSync(resolve(javaPath,"AxeNativeAuthLabPlugin.java"),"utf8");
+check(/@CapacitorPlugin\(name\s*=\s*"AxeNativeAuthLab"\)/.test(nativeLab), "Nome do plugin PKCE divergente.");
+check(!/response\.put\(\s*"(?:verifier|codeVerifier|token|accessToken|refreshToken|sessionHandle|secret)"/i.test(nativeLab), "PKCE e segredos não podem ser exportados à WebView.");
+check(!/ACTION_VIEW|startActivity|https?:\/\//.test(nativeLab), "PKCE LAB não pode abrir URL externa ou navegar fora da WebView.");
 check(readFileSync(resolve(javaPath,"MainActivity.java"),"utf8").includes("registerPlugin(AxeLocationLabPlugin.class)"), "Plugin não registrado na Activity.");
+check(readFileSync(resolve(javaPath,"MainActivity.java"),"utf8").includes("registerPlugin(AxeNativeAuthLabPlugin.class)"), "Plugin PKCE não registrado na Activity.");
+check(!/android:scheme=["']https["']/.test(manifest), "App Link Android não aprovado: domínio oficial e assetlinks.json ainda pendentes.");
+check(!/android:autoVerify=["']true["']/.test(manifest), "Verificação App Links não autorizada sem domínio e associação aprovados.");
 const apkConfig = resolve(root, "android/app/build.gradle");
 check(existsSync(apkConfig), "Projeto Gradle Android não encontrado.");
 const build = readFileSync(apkConfig, "utf8");
 check(build.includes("com.axesistemas.axedespacho"), "ID do pacote nativo não coincide com AXE Despacho.");
-console.log("Android debug: IDs consistentes; serviço GPS apenas laboratório, sem cleartext e sem ACCESS_BACKGROUND_LOCATION.");
+console.log("Android debug: GPS/PKCE apenas laboratório; login nativo e App Links bloqueados; nenhum segredo exportado.");

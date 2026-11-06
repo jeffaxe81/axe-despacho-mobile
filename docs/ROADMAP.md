@@ -8,8 +8,8 @@
 | Consumo de API autenticada na mesma origem | Adaptador preparado; teste com backend real pendente |
 | Persistência opt-in de resumo redigido | Implementação inicial com testes unitários |
 | GPS enquanto app ativo | Implementação inicial; teste com dispositivos pendente |
-| Autenticação nativa Android/iOS | Pendente: trabalho também no backend |
-| GPS nativo Android de laboratório (sem envio à central) | Código de Foreground Service e notificação no APK debug; testes em dispositivo pendentes |
+| Autenticação nativa Android/iOS | Backend: contratos e MySQL descartável homologados nas PRs #243–#247; login operacional ainda desabilitado |
+| GPS nativo Android de laboratório (sem envio à central) | Código de Foreground Service e notificação no APK debug; testes em dispositivo pendentes |\n| PKCE Android e preparação de cofre Keystore (sem login) | Laboratório nativo de geração S256, cofre AES-GCM e controles de build; App Links e endpoints operacionais continuam pendentes |
 | Serviço GPS operacional autenticado | Pendente: autorização do agente, vínculo à central e teste de campo |
 | SQLite criptografado / fila idempotente | Pendente: contrato de backend e auditoria |
 | APK de teste Android | Automação de montagem debug no GitHub Actions; homologação em dispositivo pendente |
@@ -34,3 +34,11 @@ Novo gate local de consistência: o total de ocorrências ativas nunca pode supe
 - Android: regressão do bloqueio `NATIVE_AUTH_PENDING` para todas as operações autenticadas, incluindo GPS; sem envio de credenciais pela WebView.
 - Entrega em branch com CI obrigatório: teste de corrida, matriz existente de 1.000 cenários, build web e Gradle APK debug.
 - Ainda bloqueado: contrato de autenticação no backend, Android Keystore, App Links/PKCE, E2E com servidor real e teste de campo Android 14–16.
+
+
+## Laboratório Android de autenticação nativa (quatro frentes)
+
+- Código Java **debug-only** prepara um desafio PKCE S256 local, com 256 bits de aleatoriedade, sem enviar o `code_verifier` ao JavaScript ou conectar à central.
+- Cofre Android Keystore AES-GCM implementado como classe de uso exclusivo nativo, mas ainda **não armazena handles operacionais** nem possui ponte JavaScript para senhas/tokens.
+- Verificação do APK impede ativação do login operacional, App Link sem domínio aprovado e exposição de credenciais. [Contrato e limitações](ANDROID_NATIVE_AUTH_LAB.md).
+- Próximos gates: servidor OAuth/PKCE aprovado no `dispatch`, App Links verificados, troca nativa auditada, credenciais protegidas, revisão de segurança e testes Android 14–16 reais; GPS produção continua bloqueado.
