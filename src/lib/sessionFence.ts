@@ -39,7 +39,9 @@ export function markPendingLogout(storage: FenceStorage) {
 export function shouldRevokeForLogoutFenceEvent(
   key:string|null,newValue:string|null
 ):boolean {
-  return key===PENDING_LOGOUT_KEY && newValue!==null;
+  // A storage.clear() event uses key=null. Treat wholesale clearing of
+  // origin storage as a security-sensitive session boundary too.
+  return key===null || (key===PENDING_LOGOUT_KEY && newValue!==null);
 }
 export function hasPendingLogout(storage: FenceStorage) {
   // Corrupted/unknown markers must never silently turn a pending logout into
