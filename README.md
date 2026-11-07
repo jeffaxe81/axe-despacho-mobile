@@ -4,6 +4,16 @@ Cliente mobile independente do [AXE Despacho — central web e backend](https://
 
 > **Progresso verificável (pré-produção):** `npm run readiness:mobile` informa o percentual dos gates reais com evidências válidas. A CI avalia esse progresso separadamente dos testes de código e build. Veja [Matriz de evolução](docs/QUALITY_PROGRESS.md).
 
+## Ajuda guiada, usabilidade e APIs (pré-produção)
+
+- **Ajuda na tela:** abra **Manual e trilhas guiadas**, disponível antes do login, com roteiro de agente, GPS, perda de rede, laboratórios Android, integração e suporte. O checklist é local e não persiste dados.
+- **Busca e filtros:** por código, categoria ou situação **apenas nas ocorrências carregadas**; não alteram autorização, status, conflito operacional ou GPS.
+- **Manual completo:** [Manual por trilhas](docs/MANUAL_TRILHAS.md) — 8 roteiros com critérios de aceite.
+- **Integrações:** [APIs abertas e contratos](docs/API_ABERTAS_E_CONTRATOS.md), [catálogo tRPC atual](docs/api/mobile-api-catalog.json) e [OpenAPI 3.1 proposto — NÃO IMPLANTADO](docs/api/openapi-external-proposal.yaml).
+- **Riscos e correções:** [lacunas e tratamento](docs/LACUNAS_E_TRATAMENTO.md), incluindo a necessidade de confirmar `tenant.selection` na central e de homologar autenticação Android/GPS.
+
+A documentação não publica uma API REST aberta nem habilita operações nativas. O manifesto de homologação real continua separado da CI.
+
 ## Objetivo
 
 Agentes em campo usam celulares e tablets Android/iOS para consultar ocorrências atribuídas, aceitar despachos e registrar o atendimento, com compartilhamento GPS **iniciado pelo usuário e autorizado pela central**.
