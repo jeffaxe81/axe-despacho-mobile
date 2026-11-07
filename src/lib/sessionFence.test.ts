@@ -70,7 +70,8 @@ describe("session logout fence protects web client after remote logout failure",
   it("never unlocks a session on marker removal or unrelated storage keys",()=>{
     expect(shouldRevokeForLogoutFenceEvent(PENDING_LOGOUT_KEY,null)).toBe(false);
     expect(shouldRevokeForLogoutFenceEvent("unrelated.key","pending")).toBe(false);
-    expect(shouldRevokeForLogoutFenceEvent(null,"pending")).toBe(false);
+    expect(shouldRevokeForLogoutFenceEvent(null,"pending")).toBe(true);
+    expect(shouldRevokeForLogoutFenceEvent(null,null)).toBe(true);
   });
   it("persists a pending-logout flag across app views without storing credentials",()=>{
     const local=store();
