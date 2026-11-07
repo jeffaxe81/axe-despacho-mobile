@@ -11,6 +11,9 @@ import { useForegroundLifecycle } from "./hooks/useForegroundLifecycle";
 import { AndroidGpsLab } from "./components/AndroidGpsLab";
 import { AndroidFieldDemo } from "./components/AndroidFieldDemo";
 import { AndroidAuthLab } from "./components/AndroidAuthLab";
+import { HelpCenter } from "./components/HelpCenter";
+import { filterLoadedAssignments,MAX_ASSIGNMENT_QUERY_CHARS } from "./lib/assignmentSearch";
+import type { AssignmentViewFilter } from "./lib/assignmentSearch";
 import { markPendingLogout,hasPendingLogout,clearPendingLogout,assertSessionFenceWritable,shouldRevokeForLogoutFenceEvent } from "./lib/sessionFence";
 import { loadVerifiedTeamSnapshot } from "./lib/teamSnapshot";
 import { ApiError } from "./lib/api";
@@ -62,6 +65,8 @@ export default function App() {
   const [username,setUsername]=useState("");
   const [password,setPassword]=useState("");
   const [note,setNote]=useState("");
+  const [incidentQuery,setIncidentQuery]=useState("");
+  const [incidentView,setIncidentView]=useState<AssignmentViewFilter>("all");
   const native=Capacitor.isNativePlatform();
   const canField=isFieldUser(user,access,orgId) &&
     Array.isArray(tenant?.organizations) &&
@@ -69,7 +74,12 @@ export default function App() {
   const active=activeAssigned(rows);
   // Global active counts come from status-filtered reads, NOT only the first 50 rows.
   const conflict=activeCount>1;
-  const selected=rows.find(r=>r.incident.id===selectedId) ?? active[0] ?? rows.find(r=>r.incident.status==="despachada") ?? rows[0];
+  // Filters only affect visibility; server-derived activeCount and GPS/action
+  // authorization continue to use the complete verified snapshot.
+  const visibleRows=filterLoadedAssignments(rows,incidentQuery,incidentView);
+  const selected=visibleRows.find(r=>r.incident.id===selectedId) ??
+    visibleRows.find(r=>r.incident.status==="aceita"||r.incident.status==="em_atendimento"||r.incident.status==="pausada") ??
+    visibleRows.find(r=>r.incident.status==="despachada") ?? visibleRows[0];
   const recentlyVerified=isFieldSnapshotFresh(lastVerifiedAt,clock);
   const controlsEnabled=Boolean(!native && !logoutPending && canField && online && foreground && recentlyVerified && !mustValidate && !working && !conflict);
   const canSendGPS=Boolean(controlsEnabled && activeCount===1 && active.length===1 && sharing);
@@ -90,6 +100,7 @@ export default function App() {
     setRows([]);setTotalOccurrences(0);setActiveCount(0);setSelectedId(null);
     setSavedRows(null);setSavedUntil(null);setPersistOnDevice(false);
     setCopyMessage("");setNote("");setPassword("");
+    setIncidentQuery("");setIncidentView("all");
     clearFieldSession();
     setMessage(reason);
   },[sessionEpoch]);
@@ -328,6 +339,7 @@ export default function App() {
       clearFieldSession();
       setUser(null);setAccess(null);setOrgId(null);setTenant(null);setRows([]);setTotalOccurrences(0);setActiveCount(0);setLastVerifiedAt(null);
       setPassword("");setSelectedId(null);setSavedRows(null);setSavedUntil(null);
+      setIncidentQuery("");setIncidentView("all");
       setPersistOnDevice(false);
       if(sessionEpoch.isCurrent(ticket))setWorking(false);
     }
@@ -397,6 +409,7 @@ export default function App() {
     sessionEpoch.changeScope();
     setSharing(false);setMustValidate(true);setLastVerifiedAt(null);setRows([]);setSavedRows(null);
     setSelectedId(null);setPersistOnDevice(false);setOrgId(value);
+    setIncidentQuery("");setIncidentView("all");
   }
   const fieldProblem=loaded && user && !canField && Boolean(tenant && orgId);
 
@@ -407,6 +420,7 @@ export default function App() {
     </header>
     <main className="main">
       <div className="hero"><div><span className="eyebrow">Operação em campo</span><h1>Despachos no seu dispositivo</h1><p>Receba ocorrências, atualize a equipe e compartilhe sua localização com a central quando autorizado.</p></div><span className="device-label">{native?"Aplicativo nativo":"Aplicativo web"}</span></div>
+      <HelpCenter environment={native?"android":"web"} />
       {!online&&<p className="notice warning" role="alert">Sem rede. Nenhuma alteração de status ou transmissão de GPS será iniciada. O resumo temporário só pode ser consultado após autenticação válida.</p>}
       {native&&<p className="notice warning" role="status">Prévia Android de homologação: a interface nativa está disponível, porém o login operacional e o GPS em segundo plano ainda exigem integração segura na central. Nenhuma senha será solicitada nesta versão nativa.</p>}
       {!foreground&&<p className="notice warning" role="status">O aplicativo foi colocado em segundo plano. O envio de GPS foi desligado e as ocorrências devem ser revalidadas ao retornar.</p>}
@@ -446,11 +460,32 @@ export default function App() {
           <div className="section-head"><div><h2>Ocorrências atribuídas</h2><p>{totalOccurrences} ocorrência(s) da equipe</p></div><button className="secondary" type="button" onClick={refresh} disabled={!online||working||!foreground}>{working?"Atualizando...":"Atualizar"}</button></div>
           {(mustValidate||!recentlyVerified)&&<p className="notice warning">Atribuições sem confirmação recente. Ações e GPS bloqueados até nova consulta à central.</p>}
           {conflict&&<p className="notice danger">Conflito: {activeCount} ocorrências ativas encontradas na equipe, inclusive fora da primeira página. Ações e localização bloqueadas.</p>}
-          <div className="assignment-list">{rows.map(({incident})=><button key={incident.id} type="button" className={"incident-card "+(selected?.incident.id===incident.id?"selected":"")} onClick={()=>{setSelectedId(incident.id);setNote("");}}>
+          <div className="assignment-filters" role="group" aria-label="Filtros locais das ocorrências carregadas">
+            <label htmlFor="assignment-search">Buscar por código ou categoria
+              <input id="assignment-search" type="search" maxLength={MAX_ASSIGNMENT_QUERY_CHARS}
+                autoComplete="off" value={incidentQuery} placeholder="Ex.: OCO-101 ou resgate"
+                onChange={e=>{setIncidentQuery(e.target.value);setSelectedId(null);}} />
+            </label>
+            <label htmlFor="assignment-view">Situação
+              <select id="assignment-view" value={incidentView}
+                onChange={e=>{setIncidentView(e.target.value as AssignmentViewFilter);setSelectedId(null);}}>
+                <option value="all">Todas as carregadas</option>
+                <option value="dispatched">Aguardando aceite</option>
+                <option value="active">Em atendimento / ativas</option>
+                <option value="finished">Concluídas / canceladas</option>
+              </select>
+            </label>
+          </div>
+          <p className="hint" role="status">Exibindo {visibleRows.length} de {rows.length} registros carregados. A pesquisa não consulta outras páginas da central.</p>
+          {(incidentQuery||incidentView!=="all")&&<button className="secondary filter-reset" type="button"
+            onClick={()=>{setIncidentQuery("");setIncidentView("all");setSelectedId(null);}}>
+            Limpar filtros
+          </button>}
+          <div className="assignment-list">{visibleRows.map(({incident})=><button key={incident.id} type="button" className={"incident-card "+(selected?.incident.id===incident.id?"selected":"")} onClick={()=>{setSelectedId(incident.id);setNote("");}}>
             <span className="incident-heading"><strong>{incident.code}</strong><span className="priority">{incident.priority}</span></span>
             <span className="incident-category">{incident.category}</span><span className="incident-status">{statusLabels[incident.status]}</span>
           </button>)}</div>
-          {!rows.length&&!mustValidate&&<p className="empty">Nenhuma ocorrência atribuída a esta equipe.</p>}
+          {!visibleRows.length&&!mustValidate&&<p className="empty">{rows.length>0?"Nenhum registro corresponde aos filtros. Limpe a busca para consultar os demais itens carregados.":"Nenhuma ocorrência atribuída a esta equipe."}</p>}
         </section>
         <div className="field-column">
           <section className="panel">
