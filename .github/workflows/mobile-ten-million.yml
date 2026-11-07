@@ -46,8 +46,8 @@ jobs:
           node-version: '24'
       - name: Repository public-secret guard
         run: node scripts/public-repo-guard.mjs
-      - name: Install locked dependencies
-        run: npm ci --no-audit --no-fund
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
       - name: Execute one million seeded synthetic evaluations
         run: npm run test:10m:shard
       - name: Publish signed-by-CI scenario receipt
