@@ -2,6 +2,8 @@
 
 Cliente mobile independente do [AXE Despacho — central web e backend](https://github.com/jeffaxe81/dispatch).
 
+> **Progresso verificável (pré-produção):** `npm run readiness:mobile` informa o percentual dos gates reais com evidências válidas. A CI avalia esse progresso separadamente dos testes de código e build. Veja [Matriz de evolução](docs/QUALITY_PROGRESS.md).
+
 ## Objetivo
 
 Agentes em campo usam celulares e tablets Android/iOS para consultar ocorrências atribuídas, aceitar despachos e registrar o atendimento, com compartilhamento GPS **iniciado pelo usuário e autorizado pela central**.

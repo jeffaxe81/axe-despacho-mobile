@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "project": "AXE Despacho Mobile",
+  "release_status": "NOT_APPROVED_FOR_PRODUCTION",
+  "policy": {
+    "manual_environment_tests_required_before_production_go": true,
+    "do_not_claim_unperformed_tests_as_passed": true,
+    "do_not_enable_native_login_or_gps_without_homologation": true
+  },
+  "external_environment_tests": [
+    {
+      "id": "ANDROID-AUTH",
+      "area": "Autenticação nativa e revogação",
+      "status": "PENDING_REAL_ENVIRONMENT",
+      "owner": "to_be_assigned",
+      "executed_at": null,
+      "evidence_url": null
+    },
+    {
+      "id": "ANDROID-GPS",
+      "area": "GPS Android em background e mapa da central",
+      "status": "PENDING_REAL_ENVIRONMENT",
+      "owner": "to_be_assigned",
+      "executed_at": null,
+      "evidence_url": null
+    },
+    {
+      "id": "ANDROID-E2E",
+      "area": "Operação real, RBAC, rede e segurança Android 14–16",
+      "status": "PENDING_REAL_ENVIRONMENT",
+      "owner": "to_be_assigned",
+      "executed_at": null,
+      "evidence_url": null
+    },
+    {
+      "id": "IOS-RELEASE",
+      "area": "Segurança, testes físicos e distribuição iOS",
+      "status": "PENDING_REAL_ENVIRONMENT",
+      "owner": "to_be_assigned",
+      "executed_at": null,
+      "evidence_url": null
+    }
+  ]
+}

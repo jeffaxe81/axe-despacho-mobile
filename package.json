@@ -8,6 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "check": "tsc --noEmit",
     "test": "vitest run",
+    "test:readiness": "node --test scripts/mobile-readiness.nodecheck.mjs",
+    "readiness:mobile": "node scripts/mobile-readiness.mjs",
     "test:1000": "vitest run src/lib/robustness1000.test.ts",
     "preview": "vite preview",
     "native:sync": "npm run build && cap sync",
