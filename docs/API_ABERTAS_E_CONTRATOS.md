@@ -12,7 +12,7 @@ O Mobile utiliza **tRPC HTTP + SuperJSON**, através de `/api/trpc/<procedimento
 | Verificar usuário | `auth.me` | Query | Localizado no backend |
 | Entrar (somente PWA de mesma origem) | `auth.login` | Mutation | Localizado no backend |
 | Sair | `auth.logout` | Mutation | Localizado no backend |
-| Selecionar tenant | `tenant.selection` | Query | **Não localizado no roteador principal inspecionado** |
+| Selecionar tenant | `tenant.selection` | Query | **Localizado no roteador composto** (`server/tenantAwareAppRouter.ts`, integrado ao `rootRouter`); teste HTTP real pendente |
 | Ver permissões | `access.me` | Query | Localizado no backend |
 | Listar atribuições | `incidents.list` | Query | Localizado no backend, exige `occurrences.view` |
 | Aceitar/recusar | `incidents.respondToAssignment` | Mutation | Localizado no backend, verifica agente/equipe |
@@ -24,7 +24,7 @@ O Mobile utiliza **tRPC HTTP + SuperJSON**, através de `/api/trpc/<procedimento
 
 O catálogo em JSON auditável para ferramentas e revisores está em [mobile-api-catalog.json](api/mobile-api-catalog.json).
 
-**Tickets de integração no backend:** [#253 — tenant.selection](https://github.com/jeffaxe81/dispatch/issues/253) e [#254 — API REST aberta sob autenticação](https://github.com/jeffaxe81/dispatch/issues/254).
+**Tickets de integração no backend:** [#253 — homologar tenant.selection na composição real](https://github.com/jeffaxe81/dispatch/issues/253) e [#254 — API REST aberta sob autenticação](https://github.com/jeffaxe81/dispatch/issues/254).
 
 ## 2. Integrações públicas — desenho recomendado
 
@@ -60,4 +60,4 @@ Documentei um **rascunho OpenAPI 3.1**, em [openapi-external-proposal.yaml](api/
 4. CI verde, testes integrados de tenant cruzado, idempotência, concorrência, expiração e revogação.
 5. Manual de adesão, política de versões/depreciação, observabilidade e aceite de segurança.
 
-**Gap P0:** a chamada `tenant.selection` do Mobile não foi encontrada no `appRouter` inspecionado, embora usada no fluxo de autenticação web. Resolver isso antes de qualquer declaração de integração PWA comprovada. Consulte [lacunas e tratamento](LACUNAS_E_TRATAMENTO.md).
+**Correção de auditoria:** `tenant.selection` é fornecido pelo `tenantAwareAppRouter` e exposto na composição de `rootRouter`. A verificação inicial limitada a `appRouter` gerou um falso alerta de rota ausente. O risco remanescente é demonstrar em teste HTTP integrado o fluxo PWA, escopo de tenant e revogação. Consulte [lacunas e tratamento](LACUNAS_E_TRATAMENTO.md).
