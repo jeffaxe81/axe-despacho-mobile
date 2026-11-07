@@ -1,0 +1,110 @@
+name: Mobile 5B synthetic policy campaign
+on:
+  pull_request:
+    paths:
+      - 'scripts/quality/**'
+      - 'vitest.10b.config.ts'
+      - 'package.json'
+      - 'src/lib/**'
+      - '.github/workflows/product-5b-mobile.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: 5b-mobile-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  CI: 'true'
+jobs:
+  smoke:
+    name: Verify 100k seed cases — ${{ matrix.group }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: true
+      max-parallel: 5
+      matrix:
+        group:
+          - rbac
+          - gps_validity
+          - gps_antireplay
+          - sync_freshness
+          - network_lifecycle
+          - assignment_search
+          - assignment_contract
+          - session_epoch
+          - offline_scope
+          - logout_fence
+    env:
+      CAMPAIGN_GROUP: ${{ matrix.group }}
+      CAMPAIGN_PARTITION: '0'
+      CAMPAIGN_ITERATIONS: '100000'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Smoke real production policy functions
+        run: npm run test:10b:shard
+  full:
+    name: 100M checks — ${{ matrix.group }} / ${{ matrix.partition }}
+    needs: smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        group:
+          - rbac
+          - gps_validity
+          - gps_antireplay
+          - sync_freshness
+          - network_lifecycle
+          - assignment_search
+          - assignment_contract
+          - session_epoch
+          - offline_scope
+          - logout_fence
+        partition: [0, 1, 2, 3, 4]
+    env:
+      CAMPAIGN_GROUP: ${{ matrix.group }}
+      CAMPAIGN_PARTITION: ${{ matrix.partition }}
+      CAMPAIGN_ITERATIONS: '100000000'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Public source secret guard
+        run: node scripts/public-repo-guard.mjs
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Execute counted production policy checks
+        run: npm run test:10b:shard
+      - name: Retain reproducible evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: campaign-mobile-${{ matrix.group }}-${{ matrix.partition }}
+          path: artifacts/campaign-10b/mobile-${{ matrix.group }}-${{ matrix.partition }}.json
+          if-no-files-found: error
+          retention-days: 14
+  verify:
+    name: Verify 5B complete receipts (NOT production GO)
+    needs: full
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: campaign-mobile-*
+          merge-multiple: true
+          path: artifacts/campaign-10b
+      - name: Reject missing, duplicated, mixed-SHA and incomplete receipts
+        run: node scripts/quality/verify-5b-campaign.mjs
