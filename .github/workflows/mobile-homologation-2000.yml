@@ -1,0 +1,44 @@
+name: Mobile pre-homologation 2000 (synthetic)
+on:
+  pull_request:
+    paths:
+      - 'src/lib/mobileHomologation2000*.test.ts'
+      - 'src/lib/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/mobile-homologation-2000.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-gates:
+    name: 2000 mobile synthetic policy cases
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Public repository safety
+        run: node scripts/public-repo-guard.mjs
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: TypeScript
+        run: npm run check
+      - name: Execute 2000 test cases
+        run: npm run test:2000
+      - name: Record synthetic-only gate summary
+        if: success()
+        run: |
+          {
+            echo '## AXE Despacho Mobile — 2.000 testes sintéticos'
+            echo ''
+            echo '- 10 matrizes × 200 cenários = **2.000 testes automatizados**.'
+            echo '- Os casos são independentes dos 1.000 cenários já existentes.'
+            echo '- Validação: **código/contrato em CI**, não homologação em dispositivos, API real ou ambiente operacional.'
+            echo '- Os gates ANDROID-AUTH, ANDROID-GPS, ANDROID-E2E e IOS-RELEASE permanecem sem aprovação automática.'
+            echo '- Produção: **NÃO AUTORIZADA**.'
+          } >> "$GITHUB_STEP_SUMMARY"
