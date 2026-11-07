@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "AXE Despacho Mobile",
-  "evidence": "Static inspection of src/lib/api.ts (mobile) and server/routers.ts + server/openapi.ts (central). Runtime not validated.",
+  "evidence": "Static inspection of mobile src/lib/api.ts and backend server/rootRouter.ts -> typedTenantAwareAppRouter.ts -> tenantAwareAppRouter.ts; runtime endpoint availability still needs integration tests.",
   "transport": "tRPC HTTP + SuperJSON; browser cookie HttpOnly same-origin",
   "open_anonymous_api_available": false,
   "operational_native_auth_available": false,
@@ -31,9 +31,9 @@
     {
       "procedure": "tenant.selection",
       "kind": "query",
-      "availability": "missing_from_inspected_root_router",
+      "availability": "implemented_in_composed_runtime_router",
       "client": "mobile_expects_it",
-      "access": "Block mobile integration test until root router implements/aliases it"
+      "access": "Implemented through tenantAwareAppRouter override; operational session and tenant scope required; real integration pending"
     },
     {
       "procedure": "access.me",
