@@ -64,3 +64,36 @@ describe("AXED-F041/F042/F045/F046 — campo offline contido e sem replay", () =
     expect(() => saveAgentNoteDraft(s, scope, 15, "a".repeat(1001), 100)).toThrow();
   });
 });
+
+  // Regression: validation on the read side must reject stale or modified
+  // envelopes with unredacted personal information.
+describe("offline snapshots fail closed on unexpected fields and duplicates", () => {
+  function writePayload(payload: unknown) {
+    const store = memory();
+    const key = agentOfflineKey(scope, "list");
+    store.setItem(key, JSON.stringify({
+      version:1,scope,createdAt:100,
+      expiresAt:100 + AGENT_OFFLINE_TTL_MS,payload
+    }));
+    return {store,key};
+  }
+  it("removes envelopes containing address, descriptions or coordinates",()=>{
+    const {store,key}=writePayload([{id:1,code:"OCO-1",category:"Vistoria",status:"aceita",
+      address:"private",latitude:-27.5}]);
+    expect(loadLastAuthorizedAssignments(store,scope,101)).toEqual([]);
+    expect(store.getItem(key)).toBeNull();
+  });
+  it("refuses duplicate incidents and clears the snapshot",()=>{
+    const item={id:1,code:"OCO-1",category:"Vistoria",status:"aceita"};
+    const {store,key}=writePayload([item,{...item,status:"concluida"}]);
+    expect(loadLastAuthorizedAssignments(store,scope,101)).toEqual([]);
+    expect(store.getItem(key)).toBeNull();
+  });
+  it("refuses whitespace-only and control-character categories",()=>{
+    const item={id:1,code:"OCO-1",category:" ",status:"aceita"};
+    const {store}=writePayload([item]);
+    expect(loadLastAuthorizedAssignments(store,scope,101)).toEqual([]);
+    expect(()=>saveLastAuthorizedAssignments(store,scope,[{...item,category:"A\\nB"}],101)).not.toThrow();
+    expect(()=>saveLastAuthorizedAssignments(store,scope,[{...item,category:"A\nB"}],101)).toThrow();
+  });
+});
