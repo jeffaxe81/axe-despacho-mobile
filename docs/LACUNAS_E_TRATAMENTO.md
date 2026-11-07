@@ -6,7 +6,7 @@
 
 | ID | Prioridade | Lacuna identificada | Tratamento necessário | Aceite verificável |
 | --- | --- | --- | --- | --- |
-| GAP-01 | **P0** | O Mobile chama `tenant.selection`, mas não foi localizado no `server/routers.ts` consultado | Backend deve confirmar rota/alias real ou fornecer procedimento protegido com organizações elegíveis, seleção ativa e escopo verificável; alinhar DTO no Mobile | Contrato server/client integrado, testes multi-tenant e 401/403, sem aceitar IDs forjados |
+| GAP-01 | **P0 — integração real pendente** | `tenant.selection` **existe** em `server/tenantAwareAppRouter.ts` e é exposto via `typedTenantAwareAppRouter`/`rootRouter`; a inspeção anterior somente de `appRouter` foi incompleta | Não criar rota duplicada; executar teste HTTP de autenticação, seleção de organizações e autorização entre Mobile e backend, corrigindo contrato apenas se o teste revelar divergência | 200 autorizado, 401/403, isolamento multi-tenant, revogação e sessão expirada comprovados |
 | GAP-02 | **P0** | Login nativo Android permanece bloqueado por `NATIVE_AUTH_PENDING` | Criar contrato OAuth2/OIDC Authorization Code + PKCE na central, App Link HTTPS verificado, cofre Keystore, expiração e revogação; testes físicos | `ANDROID-AUTH` aprovado com evidência real; sem tokens na WebView |
 | GAP-03 | **P0** | GPS operacional com tela bloqueada ainda não envia à central | Vincular serviço Android a sessão nativa e equipe autorizada; sequência/idempotência, restrição de bateria e política LGPD; cenários reais 14–16 | `ANDROID-GPS` com fluxo ida/volta, perda de rede, precisão, permissões e auditoria |
 | GAP-04 | **P0** | Homologação ponta a ponta Android e distribuição iOS não concluídas | Dispositivos reais, backend isolado, autorização, UX acessível, acompanhamento, assinatura e distribuição | `ANDROID-E2E` e `IOS-RELEASE` com evidências e decisão GO independente |
@@ -22,7 +22,7 @@
 
 ## Sequência recomendada
 
-1. **Concluir contratos e homologação de backend:** resolver GAP-01 e preparar GAP-02 antes de ativar login Android. Manter PWA na mesma origem HTTPS e validar com central descartável.
+1. **Concluir contratos e homologação de backend:** homologar GAP-01 e preparar GAP-02 antes de ativar login Android. Manter PWA na mesma origem HTTPS e validar com central descartável.
 2. **Fechar autenticação nativa:** revisão de criptografia e autorização (GAP-02). Não desativar bloqueios enquanto faltar teste de revogação/escopo.
 3. **GPS/operacional:** após autenticação, implementar GAP-03 com idempotência; validar bateria, permissões e tela bloqueada em Android real.
 4. **APIs abertas:** projetar GAP-05 e GAP-06 no **backend**, com portal/guia técnico e versão da especificação que realmente corresponda aos serviços.
@@ -38,4 +38,4 @@
 
 ## Evidência técnica da auditoria
 
-O `src/lib/api.ts` do Mobile contém `tenant:()=>rpc(...,"tenant.selection")`; na leitura do `server/routers.ts` principal da central foi encontrado `access.me`, `incidents.list`, `incidents.respondToAssignment`, `incidents.transition`, `teams.recordLocation` e `integrations.openapi.internal`, mas não o roteador `tenant` esperado. O arquivo `server/openapi.ts` apresenta um catálogo de simulação com `https://simulation.invalid/axe-dispatch` e `x-simulation-only`. Esta análise exige confirmação do backend com teste de integração antes de concluir indisponibilidade efetiva de um ambiente específico.
+O `src/lib/api.ts` do Mobile contém `tenant.selection`, **implementado** em `server/tenantAwareAppRouter.ts`, composto por `server/typedTenantAwareAppRouter.ts` e publicado em `server/rootRouter.ts` (usado por `server/_core/index.ts`). A ausência no `server/routers.ts` isolado não prova indisponibilidade. A verificação HTTP integrada continua necessária. O `server/openapi.ts` contém catálogo interno de simulação com `https://simulation.invalid/axe-dispatch` e `x-simulation-only`; não representa gateway público pronto.\n
