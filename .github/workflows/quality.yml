@@ -26,5 +26,9 @@ jobs:
         run: |
           npm run test:readiness
           npm run readiness:mobile
+      - name: Auditar evidências por fase — desenvolvimento somente
+        run: |
+          node --test scripts/quality/phase-handoff-audit.nodecheck.mjs
+          node scripts/quality/phase-handoff-audit.mjs
       - name: Web bundle
         run: npm run build
