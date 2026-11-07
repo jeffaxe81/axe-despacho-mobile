@@ -19,3 +19,30 @@
 .demo-history{padding-left:22px;font-size:12px;line-height:1.8}
 .android-demo button{min-height:44px}
 @media(max-width:720px){.demo-layout{grid-template-columns:1fr}.demo-selector{grid-template-columns:1fr}.demo-detail{padding-top:10px;border-top:1px solid #dae5eb}}
+
+/* Progressive, keyboard-accessible help — collapsed by default on mobile. */
+.help-panel{padding:0;overflow:hidden}
+.help-details>.help-summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 20px;cursor:pointer;list-style-position:inside}
+.help-summary:focus-visible{outline:3px solid #38bdf8;outline-offset:-3px}
+.help-summary strong{display:block;font-size:15px;color:#0d3a57}
+.help-summary small{display:block;font-size:12px;color:#63798a;margin-top:4px;line-height:1.4}
+.help-summary-action{font-size:12px;font-weight:700;color:#087f77;white-space:nowrap}
+.help-details[open] .help-summary-action{font-size:0}
+.help-details[open] .help-summary-action::after{content:"Fechar ajuda";font-size:12px}
+.help-content{border-top:1px solid #d6e5eb;padding:16px 20px 20px}
+.help-trail-nav{display:flex;flex-wrap:wrap;gap:8px;margin:15px 0}
+.help-trail-button{border:1px solid #cadde6;border-radius:999px;padding:9px 13px;background:#f8fbfc;color:#0d405b;font-size:12px;min-height:42px}
+.help-trail-button.selected{background:#dff5f1;border-color:#087f77;color:#075f57;font-weight:700}
+.help-trail-button[aria-pressed="true"]{box-shadow:0 0 0 1px #087f77 inset}
+.help-trail-body{background:#f9fcfd;border:1px solid #d8e6ec;padding:16px;border-radius:12px}
+.help-trail-body .section-head h3{font-size:16px;margin:0}
+.help-step-list{padding-left:25px;display:grid;gap:12px}
+.help-step{display:flex;gap:12px;align-items:flex-start;font-size:13px;line-height:1.6;cursor:pointer}
+.help-step input{width:19px;height:19px;flex-shrink:0;accent-color:#087f77;margin-top:1px}
+.help-step input:checked+span{color:#406a74}
+.help-reset{margin-top:14px}
+.assignment-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:14px 0 8px}
+.assignment-filters label{display:grid;align-content:start;gap:6px;font-size:12px;color:#345d71;font-weight:700}
+.assignment-filters input,.assignment-filters select{min-width:0;max-width:100%;height:44px;border:1px solid #c5d8df;border-radius:10px;padding:8px 10px;color:#16394d;background:#fff;font-size:13px}
+.filter-reset{margin:5px 0 2px;min-height:38px}
+@media(max-width:620px){.assignment-filters{grid-template-columns:1fr}.help-details>.help-summary{padding:14px}.help-content{padding:14px}.help-trail-body{padding:12px}.help-trail-button{width:100%;text-align:left}.help-summary small{font-size:11px}}
