@@ -76,3 +76,44 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
+
+  emulator-smoke:
+    name: Emulator smoke — Android API ${{ matrix.api-level }}
+    needs: debug-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        api-level: [34, 35, 36]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download previously built lab APK
+        uses: actions/download-artifact@v4
+        with:
+          name: axe-despacho-android-debug
+          path: artifacts/android-apk
+      - name: Enable emulator hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Validate installation, foreground safety and lifecycle
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
+          script: bash scripts/android/emulator-smoke.sh
+      - name: Save synthetic emulator evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: axe-despacho-emulator-api-${{ matrix.api-level }}
+          path: artifacts/android-emulator-smoke/
+          if-no-files-found: warn
+          retention-days: 7
