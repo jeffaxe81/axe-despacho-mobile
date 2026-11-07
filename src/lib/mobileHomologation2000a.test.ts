@@ -4,7 +4,6 @@ import { isFieldUser } from "./contracts";
 import { loadVerifiedTeamSnapshot } from "./teamSnapshot";
 import { SessionEpoch } from "./sessionEpoch";
 import { validLocation } from "./gpsAttemptLedger";
-import { GpsAttemptLedger } from "./gpsAttemptLedger";
 
 /**
  * Mobile pre-homologation suite A: 1,000 independently named synthetic cases.
