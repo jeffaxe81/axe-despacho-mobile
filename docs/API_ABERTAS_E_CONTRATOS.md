@@ -24,6 +24,8 @@ O Mobile utiliza **tRPC HTTP + SuperJSON**, através de `/api/trpc/<procedimento
 
 O catálogo em JSON auditável para ferramentas e revisores está em [mobile-api-catalog.json](api/mobile-api-catalog.json).
 
+**Tickets de integração no backend:** [#253 — tenant.selection](https://github.com/jeffaxe81/dispatch/issues/253) e [#254 — API REST aberta sob autenticação](https://github.com/jeffaxe81/dispatch/issues/254).
+
 ## 2. Integrações públicas — desenho recomendado
 
 Documentei um **rascunho OpenAPI 3.1**, em [openapi-external-proposal.yaml](api/openapi-external-proposal.yaml), com endereço `https://api.example.invalid`. Ele não foi implantado e não deve ser usado por clientes externos. O projeto requer uma camada no **backend** com contratos versionados, nunca uma rota anônima adicionada ao Mobile.
