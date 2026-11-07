@@ -1,0 +1,76 @@
+name: Mobile 10M synthetic pre-homologation
+on:
+  pull_request:
+    paths:
+      - 'scripts/quality/mobileTenMillion.fuzz.ts'
+      - 'scripts/quality/verify-ten-million.mjs'
+      - 'src/lib/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vitest.10m.config.ts'
+      - '.github/workflows/mobile-ten-million.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mobile-ten-million-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  fuzz:
+    name: 1M checks — ${{ matrix.group }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        group:
+          - rbac
+          - incident_contract
+          - team_snapshot
+          - session_epoch
+          - freshness
+          - lifecycle
+          - gps_integrity
+          - gps_antireplay
+          - offline_privacy
+          - logout_security
+    env:
+      MOBILE_FUZZ_GROUP: ${{ matrix.group }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Repository public-secret guard
+        run: node scripts/public-repo-guard.mjs
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Execute one million seeded synthetic evaluations
+        run: npm run test:10m:shard
+      - name: Publish signed-by-CI scenario receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-10m-${{ matrix.group }}
+          path: artifacts/ten-million/receipt-${{ matrix.group }}.json
+          if-no-files-found: error
+          retention-days: 14
+  verify:
+    name: Aggregate all 10M receipts
+    needs: fuzz
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mobile-10m-*
+          merge-multiple: true
+          path: artifacts/ten-million
+      - name: Require exactly ten complete and reproducible receipts
+        run: node scripts/quality/verify-ten-million.mjs
