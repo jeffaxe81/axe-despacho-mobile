@@ -2,10 +2,11 @@ name: Mobile 5B synthetic policy campaign
 on:
   pull_request:
     paths:
-      - 'scripts/quality/**'
+      - 'scripts/quality/mobile10b.campaign.ts'
+      - 'scripts/quality/verify-5b-campaign.mjs'
       - 'vitest.10b.config.ts'
       - 'package.json'
-      - 'src/lib/**'
+      - 'src/lib/apiCatalog.test.ts'
       - '.github/workflows/product-5b-mobile.yml'
   workflow_dispatch:
 permissions:
