@@ -1,6 +1,7 @@
 import superjson from "superjson";
 import { Capacitor } from "@capacitor/core";
 import type { Access, AssignmentResult, FieldUser, IncidentStatus, TenantSelection } from "./contracts";
+import {isValidTenantSelection} from "./tenantSelectionValidation";
 
 export class ApiError extends Error {
   constructor(message:string, public readonly code:string = "UNKNOWN") { super(message); this.name = "ApiError"; }
@@ -98,7 +99,13 @@ export const api = {
     }
     return result;
   },
-  tenant:()=>rpc<TenantSelection>("GET","tenant.selection"),
+  tenant:async():Promise<TenantSelection>=>{
+    const selection=await rpc<unknown>("GET","tenant.selection");
+    if(!isValidTenantSelection(selection)){
+      throw new ApiError("A central retornou uma seleção de organização inválida.", "INVALID_TENANT_SELECTION");
+    }
+    return selection;
+  },
   access:()=>rpc<Access>("GET","access.me"),
   assignments:(orgId:number,signal?:AbortSignal,status?:IncidentStatus)=>
     rpc<AssignmentResult>("GET","incidents.list",{page:1,pageSize:50,...(status?{status}:{})},orgId,signal),
