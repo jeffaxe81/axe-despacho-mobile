@@ -20,8 +20,12 @@ function validScope(scope: AgentOfflineScope) {
 function validAssignment(value: unknown): value is AgentOfflineAssignment {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const v = value as Record<string, unknown>;
+  // A cached response with extra fields could expose personal data even if
+  // the write path currently redacts it. Reject it on READ as well.
+  if (Object.keys(v).sort().join(",") !== "category,code,id,status") return false;
   return validId(v.id) && typeof v.code === "string" && /^[a-zA-Z0-9_-]{1,60}$/.test(v.code) &&
-    typeof v.category === "string" && v.category.length > 0 && v.category.length <= 80 &&
+    typeof v.category === "string" && v.category.trim().length > 0 &&
+    v.category.length <= 80 && !/[\u0000-\u001f\u007f]/.test(v.category) &&
     typeof v.status === "string" && VALID_STATUSES.has(v.status);
 }
 export function agentOfflineKey(scope: AgentOfflineScope, type: "list" | "note", incidentId?: number): string {
@@ -57,7 +61,10 @@ function read<T>(storage: StoragePort, key: string, scope: AgentOfflineScope, va
   }
 }
 function validList(value: unknown): value is AgentOfflineAssignment[] {
-  return Array.isArray(value) && value.length <= MAX_SNAPSHOT && value.every(validAssignment);
+  if (!Array.isArray(value) || value.length > MAX_SNAPSHOT || !value.every(validAssignment)) return false;
+  // Duplicated incident IDs can make a stale/offline summary appear to contain
+  // more authorized assignments than the server returned.
+  return new Set(value.map(item => item.id)).size === value.length;
 }
 /** F041: capture only explicitly authorized, redacted rows after a successful server query. */
 export function saveLastAuthorizedAssignments(storage: StoragePort, scope: AgentOfflineScope, rows: AgentOfflineAssignment[], now = Date.now()) {
