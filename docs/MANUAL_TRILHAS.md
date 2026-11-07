@@ -27,7 +27,7 @@ Este manual está disponível de forma resumida no próprio aplicativo, em **Man
 4. Confira se a indicação de sincronização é recente (limite de 45 segundos) antes de operar.
 5. Aceite: a tela de ocorrências mostra apenas itens autorizados. Sessão expirada ou perfil inadequado bloqueiam os controles.
 
-**Falha:** caso a PWA apresente erro relacionado a `tenant.selection`, não contorne o seletor nem tente criar IDs de empresa no navegador. Ver [lacunas](LACUNAS_E_TRATAMENTO.md#gap-01).
+**Falha:** `tenant.selection` existe no backend composto; se a PWA falhar, conferir sessão, implantação, escopo e contrato HTTP com a central, sem contornar a autorização. Ver [lacunas](LACUNAS_E_TRATAMENTO.md).
 
 ## T02 — Despacho, aceite e atendimento
 
