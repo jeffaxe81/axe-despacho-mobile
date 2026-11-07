@@ -27,7 +27,7 @@ Complementar as 2.000 verificações da PR #23 e as suítes anteriores com uma b
 ## Execução reproduzível
 
 ```bash
-npm ci
+npm install --no-audit --no-fund
 MOBILE_FUZZ_GROUP=rbac npm run test:10m:shard
 MOBILE_FUZZ_GROUP=team_snapshot npm run test:10m:shard
 # Executar todas as 10 partições, cada uma produzindo um receipt JSON.
