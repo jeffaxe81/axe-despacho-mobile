@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "project": "AXE Despacho Mobile",
+  "evidence": "Static inspection of src/lib/api.ts (mobile) and server/routers.ts + server/openapi.ts (central). Runtime not validated.",
+  "transport": "tRPC HTTP + SuperJSON; browser cookie HttpOnly same-origin",
+  "open_anonymous_api_available": false,
+  "operational_native_auth_available": false,
+  "public_rest_gateway_available": false,
+  "procedures": [
+    {
+      "procedure": "auth.me",
+      "kind": "query",
+      "availability": "implemented_in_central_source",
+      "client": "web-same-origin",
+      "access": "Session introspection; does not grant unauthenticated field access"
+    },
+    {
+      "procedure": "auth.login",
+      "kind": "mutation",
+      "availability": "implemented_in_central_source",
+      "client": "web-same-origin",
+      "access": "Credentials only over same-origin HTTPS; no native login"
+    },
+    {
+      "procedure": "auth.logout",
+      "kind": "mutation",
+      "availability": "implemented_in_central_source",
+      "client": "web-same-origin",
+      "access": "Server revocation required"
+    },
+    {
+      "procedure": "tenant.selection",
+      "kind": "query",
+      "availability": "missing_from_inspected_root_router",
+      "client": "mobile_expects_it",
+      "access": "Block mobile integration test until root router implements/aliases it"
+    },
+    {
+      "procedure": "access.me",
+      "kind": "query",
+      "availability": "implemented_in_central_source",
+      "client": "web-same-origin",
+      "access": "Operational user only"
+    },
+    {
+      "procedure": "incidents.list",
+      "kind": "query",
+      "availability": "implemented_in_central_source",
+      "client": "web-same-origin",
+      "access": "occurrences.view and authorized organization/team"
+    },
+    {
+      "procedure": "incidents.respondToAssignment",
+      "kind": "mutation",
+      "availability": "implemented_in_central_source",
+      "client": "web-same-origin",
+      "access": "occurrences.transition + own team and session"
+    },
+    {
+      "procedure": "incidents.transition",
+      "kind": "mutation",
+      "availability": "implemented_in_central_source",
+      "client": "web-same-origin",
+      "access": "occurrences.transition or occurrences.close + revision"
+    },
+    {
+      "procedure": "teams.recordLocation",
+      "kind": "mutation",
+      "availability": "implemented_in_central_source",
+      "client": "web-same-origin",
+      "access": "Own team and authorized operational session"
+    },
+    {
+      "procedure": "integrations.openapi.internal",
+      "kind": "query",
+      "availability": "implemented_in_central_source",
+      "client": "not_used_by_mobile",
+      "access": "apidocs.view; catalog is simulated/internal, not public REST"
+    }
+  ],
+  "proposed_public_api": {
+    "state": "proposal_only_not_deployed",
+    "reference": "docs/api/openapi-external-proposal.yaml",
+    "security": [
+      "OAuth2/OIDC PKCE for public native clients",
+      "OAuth2 client credentials for approved services",
+      "Tenant/team/actor server authorization",
+      "Scopes and audit",
+      "Rate limiting",
+      "No raw database access",
+      "Idempotency for writes",
+      "HTTPS only"
+    ],
+    "phases": [
+      "read-only authorized API",
+      "audited write actions with idempotency",
+      "signed webhooks and versioned deprecations"
+    ]
+  }
+}

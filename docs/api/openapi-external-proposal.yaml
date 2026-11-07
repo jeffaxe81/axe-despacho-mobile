@@ -1,0 +1,112 @@
+openapi: 3.1.0
+info:
+  title: AXE Despacho — API externa proposta (NÃO DISPONÍVEL)
+  version: 0.0.0-proposta
+  description: |
+    Documento de projeto; não corresponde a endpoints implantados.
+    Nenhum componente deve tentar chamar estes endereços em produção.
+x-implementation-status: proposal-only-not-deployed
+x-authorization-policy: require-approved-tenant-scoped-access
+servers:
+  - url: https://api.example.invalid
+    description: Exemplo não resolvível — substituir somente após homologação de gateway e autenticação
+tags:
+  - name: Ocorrencias
+    description: Consulta e ações de campo mediante autorização
+paths:
+  /v1/field/assignments:
+    get:
+      operationId: listAuthorizedFieldAssignments
+      tags: [Ocorrencias]
+      summary: Listar apenas despachos autorizados ao agente e equipe
+      description: |
+        Proposta de contrato REST read-only, não implementada.
+        Nunca aceitar organizationId/teamId de cliente sem autorização vinculada ao token.
+      security:
+        - OAuth2: [field.read]
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string, maxLength: 256 }
+      responses:
+        "200":
+          description: Página de atribuições autorizadas, com versão de snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, snapshotVersion]
+                properties:
+                  snapshotVersion: { type: string }
+                  nextCursor: { type: [string, "null"] }
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Assignment" }
+        "401": { description: Sessão inválida ou revogada }
+        "403": { description: Escopo insuficiente }
+        "429": { description: Limite temporário de requisições }
+  /v1/field/assignments/{incidentId}/actions:
+    post:
+      operationId: transitionAuthorizedFieldAssignment
+      tags: [Ocorrencias]
+      summary: Solicitar transição auditada e idempotente de ocorrência
+      description: |
+        Proposta de escrita; requer avaliação do backend sobre equipe,
+        situação, revisão, permissão e chave de idempotência.
+        Nenhum retry automático de confirmação ambígua no cliente.
+      security:
+        - OAuth2: [field.transition]
+      parameters:
+        - name: incidentId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 16, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedStatus, expectedRevision, nextStatus, note]
+              properties:
+                expectedStatus: { type: string }
+                expectedRevision: { type: integer, minimum: 0 }
+                nextStatus: { type: string }
+                note: { type: string, minLength: 3, maxLength: 1000 }
+      responses:
+        "200": { description: Transição confirmada com nova revisão }
+        "401": { description: Sessão inválida }
+        "403": { description: Acesso negado ao tenant ou equipe }
+        "409": { description: Revisão/status divergente ou operação já processada }
+        "422": { description: Transição não permitida }
+        "429": { description: Limite temporário de requisições }
+components:
+  schemas:
+    Assignment:
+      type: object
+      additionalProperties: false
+      required: [id, code, status, priority, statusRevision]
+      properties:
+        id: { type: integer, minimum: 1 }
+        code: { type: string, maxLength: 120 }
+        status: { type: string }
+        priority: { type: string, enum: [baixa, media, alta, critica] }
+        statusRevision: { type: integer, minimum: 0 }
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      description: |
+        Fluxos de autorização ainda não implementados. URLs de exemplo inválidas.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.invalid/authorize
+          tokenUrl: https://auth.example.invalid/token
+          scopes:
+            field.read: Consultar atribuições autorizadas
+            field.transition: Alterar somente atribuições autorizadas
