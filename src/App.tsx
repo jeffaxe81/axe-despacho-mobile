@@ -174,8 +174,15 @@ export default function App() {
   useEffect(()=>{
     const onFence=(event:StorageEvent)=>{
       // Any non-null fence value (including malformed values) blocks this tab.
-      if(!shouldRevokeForLogoutFenceEvent(event.key,event.newValue))return;
-      // Another tab requested logout. Revoke operational UI in this tab too.
+      if(event.storageArea !== window.localStorage ||
+        !shouldRevokeForLogoutFenceEvent(event.key,event.newValue))return;
+      // A cross-tab localStorage.clear() removes the durable logout marker.
+      // Re-establish it before revoking the UI so a reload cannot reuse a
+      // still-valid HttpOnly cookie without remote logout confirmation.
+      if(event.key===null){
+        try{markPendingLogout(window.localStorage);}
+        catch{/* Fail closed in this tab even when storage is unavailable. */}
+      }
       setLogoutPending(true);
       revokeLocalAccess("Outra aba solicitou a saída. A sessão de campo foi bloqueada.");
     };
