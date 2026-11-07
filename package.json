@@ -18,7 +18,8 @@
     "android:verify": "node scripts/android/verify-generated.mjs",
     "android:install-lab": "node scripts/android/install-location-lab.mjs",
     "android:debug": "npm run build && npx cap add android && npx cap sync android && npm run android:install-lab && npm run android:verify && cd android && ./gradlew assembleDebug",
-    "test:2000": "vitest run src/lib/mobileHomologation2000a.test.ts src/lib/mobileHomologation2000b.test.ts"
+    "test:2000": "vitest run src/lib/mobileHomologation2000a.test.ts src/lib/mobileHomologation2000b.test.ts",
+    "test:10m:shard": "vitest run --config vitest.10m.config.ts"
   },
   "dependencies": {
     "@capacitor/core": "8.6.0",
