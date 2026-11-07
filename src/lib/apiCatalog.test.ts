@@ -3,14 +3,14 @@ import {readFileSync} from "node:fs";
 import catalog from "../../docs/api/mobile-api-catalog.json";
 
 describe("Mobile public API catalog — explicit status, no phantom endpoints",()=>{
-  it("contains all mobile tRPC procedures and marks the missing tenant selector",()=>{
+  it("contains all mobile tRPC procedures and locates tenant selection in composed router",()=>{
     const names=catalog.procedures.map(p=>p.procedure);
     const required=["auth.me","auth.login","auth.logout","tenant.selection","access.me",
       "incidents.list","incidents.respondToAssignment","incidents.transition","teams.recordLocation"];
     for(const name of required)expect(names).toContain(name);
     expect(new Set(names).size).toBe(names.length);
     expect(catalog.procedures.find(p=>p.procedure==="tenant.selection")?.availability)
-      .toBe("missing_from_inspected_root_router");
+      .toBe("implemented_in_composed_runtime_router");
   });
   it("never advertises operational public REST or native auth",()=>{
     expect(catalog.public_rest_gateway_available).toBe(false);
