@@ -53,7 +53,6 @@ const offline={
   setItem(key:string,value:string){this.map.set(key,value);},
   removeItem(key:string){this.map.delete(key);}
 };
-const labels=new Set<string>();
 
 function check(group:Group,x:number,i:number):boolean{
   switch(group){
@@ -70,7 +69,7 @@ function check(group:Group,x:number,i:number):boolean{
   case "gps_validity": {
     fix.latitude=(x%243)-121;fix.longitude=((x>>>8)%423)-211;
     fix.accuracy=((x>>>17)%602)-1;
-    const age=((x>>>24)%34_002)-1;
+    const age=((x>>>5)%40_002)-1;
     fix.timestamp=now-age;
     const expected=Math.abs(fix.latitude)<=90 && Math.abs(fix.longitude)<=180 &&
       fix.accuracy>=0 && fix.accuracy<=500 && age>=0 && age<=30_000;
