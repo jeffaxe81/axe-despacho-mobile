@@ -68,6 +68,8 @@ Para gerar no computador com Android SDK e Java 21: `npm run android:debug`. O A
 
 O aplicativo interrompe o compartilhamento GPS ao perder rede ou ser colocado em segundo plano; ao voltar, exige consulta atualizada à central antes de liberar operações. O limite de precisão enviado atualmente é de 500 metros (pontos piores são descartados), sujeito a homologação de campo.
 
+**Proteção contra reenvio de GPS (pré-produção):** o cliente de campo mantém em memória volátil o horário da última tentativa de envio e o horário da última captura por organização/equipe. Pausar e retomar o compartilhamento, trocar de aplicativo ou reconectar não torna a mesma captura elegível novamente após timeout. O controle não armazena coordenadas, não faz fila de envios e se perde quando o aplicativo é encerrado; a idempotência definitiva depende do backend e de homologação com dispositivo real. O APK Android permanece bloqueado para GPS operacional.
+
 ## Android: atividade em segundo plano e Git público
 
 O plugin oficial `@capacitor/app` sinaliza `appStateChange` na atividade Android, complementando `visibilitychange` do navegador. Ao colocar a atividade em segundo plano, o aplicativo suspende o compartilhamento GPS e exige revalidação antes de novos comandos; ao retornar não liga o GPS sozinho. **Isso NÃO equivale a um serviço de rastreamento em background.**
