@@ -18,6 +18,8 @@
 | GAP-10 | **P2** | Não havia pesquisa rápida local das atribuições carregadas | Entregue neste ciclo: filtros locais por código, categoria e situação, com contagem e opção de limpar | Regressão por estados, acentos, privacidade; nenhum efeito sobre permissões/GPS |
 | GAP-11 | **P2** | A evidência de interface em telas pequenas e leitores de tela ainda não foi validada por usuários | Testar manual por voz/leitor, foco, toque, telas 320–768px, textos longos/zoom e contraste | Relatório de acessibilidade/UX e correções priorizadas |
 
+**Acompanhamento na central:** [Issue #253 — alinhar tenant.selection](https://github.com/jeffaxe81/dispatch/issues/253) e [Issue #254 — API REST versionada](https://github.com/jeffaxe81/dispatch/issues/254).
+
 ## Sequência recomendada
 
 1. **Concluir contratos e homologação de backend:** resolver GAP-01 e preparar GAP-02 antes de ativar login Android. Manter PWA na mesma origem HTTPS e validar com central descartável.
