@@ -92,13 +92,14 @@ jobs:
             # compile the APK from this exact checked-out pull request.
             echo "Gradle wrapper unavailable: trying official pinned-version container."
             printf 'sdk.dir=/sdk\\n' > local.properties
-            mkdir -p .gradle-ci
+            mkdir -p .gradle-ci .android-ci
             docker run --rm --platform linux/amd64 \
               --user "$(id -u):$(id -g)" \
               -v "$PWD:/workspace" \
               -v "$ANDROID_HOME:/sdk" \
               -e ANDROID_HOME=/sdk -e ANDROID_SDK_ROOT=/sdk \
               -e GRADLE_USER_HOME=/workspace/.gradle-ci \
+              -e HOME=/workspace -e ANDROID_USER_HOME=/workspace/.android-ci \
               -w /workspace \
               gradle:8.14.3-jdk21 \
               gradle --no-daemon --stacktrace assembleDebug
