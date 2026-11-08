@@ -21,6 +21,7 @@ import { isAccessRevoked } from "./lib/sessionAccess";
 import { SessionEpoch } from "./lib/sessionEpoch";
 import { FIELD_REFRESH_INTERVAL_MS,isFieldSnapshotFresh,shouldQueryLiveAssignments,timeSinceVerification } from "./lib/clientFreshness";
 import {fieldOperationalState} from "./lib/fieldOperationalState";
+import {GpsPrecisionMonitor} from "./components/GpsPrecisionMonitor";
 
 function errorText(cause:unknown):string {
   return cause instanceof Error ? cause.message : "Operação indisponível. Verifique sua conexão.";
@@ -515,6 +516,8 @@ export default function App() {
             <div className="section-head"><h2>Localização da equipe</h2><span className="pill">GPS</span></div>
             <p className="hint">O GPS é compartilhado somente quando houver exatamente uma ocorrência ativa, após seu comando. O mapa da central marca posições desatualizadas.</p>
             <label className="toggle"><input type="checkbox" checked={sharing&&controlsEnabled} disabled={!controlsEnabled||active.length!==1} onChange={e=>setSharing(e.target.checked)}/>Compartilhar localização enquanto o aplicativo estiver ativo</label>
+            <GpsPrecisionMonitor active={canSendGPS} accuracyMeters={location.accuracyMeters}
+              measuredAt={location.measuredAt} now={clock}/>
             <p className={"location-message "+(location.status==="error"?"error":"")} role="status">{sharing?location.message||"Aguardando posição...":"Compartilhamento desativado."}</p>
             <p className="hint">Segundo plano com tela bloqueada requer serviço nativo homologado, permissões e notificação persistente. Não está ativo na versão atual.</p>
           </section>
