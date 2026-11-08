@@ -18,8 +18,9 @@ existente é React/Capacitor; adicionar Flutter fragmentaria o runtime.
 - limite por traço para evitar consumo descontrolado de memória;
 - troca de ocorrência, nova transição ou reinício do simulador descartam
   a prévia da assinatura anterior;
-- **nenhuma** gravação em localStorage, IndexedDB, arquivo, fila, backend,
-  API do serviço de assinatura ou PDF final.
+- a **captura inicial** não grava dados em localStorage, IndexedDB,
+  arquivo, fila ou backend. Somente após o comando explícito de gerar
+  PDF é criado um arquivo temporário no cache Android para compartilhar.
 
 A área aparece apenas quando a ocorrência fictícia está em
 `concluida`. Nenhuma operação real de despacho é habilitada pelo

@@ -49,8 +49,12 @@ export function AndroidFieldDemo() {
       await deliverDemoPdf(result);
       setPdfHash({incidentId:selected.id,value:result.pdfSha256});
       setMessage("PDF fictício preparado. SHA-256 disponível abaixo. Nenhum dado foi enviado à central.");
-    } catch {
-      setMessage("Não foi possível gerar ou compartilhar o PDF de teste. Nenhuma ocorrência foi alterada.");
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Nao foi possivel excluir o PDF temporario")) {
+        setMessage("O PDF foi compartilhado, mas a remoção do arquivo temporário falhou. Limpe o cache do aplicativo Android.");
+      } else {
+        setMessage("Não foi possível gerar ou compartilhar o PDF de teste. Nenhuma ocorrência foi alterada.");
+      }
     } finally {
       setPdfBusy(false);
     }
@@ -64,7 +68,7 @@ export function AndroidFieldDemo() {
     {simulateNoNetwork&&<p className="notice warning">Modo simulado sem conexão: comandos bloqueados. Os exemplos continuam disponíveis apenas para leitura.</p>}
     <div className="demo-layout">
       <div className="demo-selector" role="group" aria-label="Ocorrências demonstrativas">
-        {session.incidents.map(i=><button className={"incident-card "+(selected.id===i.id?"selected":"")} type="button" key={i.id} onClick={()=>{setSession(current=>selectDemo(current,i.id));setSignaturePreview(null);setPdfHash(null);setMessage("");}}>
+        {session.incidents.map(i=><button className={"incident-card "+(selected.id===i.id?"selected":"")} type="button" key={i.id} disabled={pdfBusy} onClick={()=>{if(pdfBusy)return;setSession(current=>selectDemo(current,i.id));setSignaturePreview(null);setPdfHash(null);setMessage("");}}>
           <span className="incident-heading"><strong>{i.code}</strong><span className="priority">{i.priority}</span></span>
           <span className="incident-category">{i.category}</span>
           <span className="incident-status">{statusLabels[i.status]}</span>
@@ -91,7 +95,7 @@ export function AndroidFieldDemo() {
             <div className="touch-signature-preview" aria-label="Assinatura demonstrativa confirmada">
               <p className="hint">Assinatura capturada somente neste aparelho, nesta sessão.</p>
               <img src={signaturePreview.pngDataUrl} alt="Traços manuscritos capturados na demonstração" />
-              <p className="hint">Capturada em {new Date(signaturePreview.capturedAt).toLocaleString("pt-BR")}. Sem envio, sem PDF assinado e sem certificação.</p>
+              <p className="hint">Capturada em {new Date(signaturePreview.capturedAt).toLocaleString("pt-BR")}. PDF disponível apenas após geração manual; sem assinatura digital certificada.</p>
               <button type="button" className="secondary" disabled={pdfBusy} onClick={()=>{setSignaturePreview(null);setPdfHash(null);}}>Refazer assinatura</button>
               <button type="button" className="primary" disabled={pdfBusy} onClick={()=>void exportReport()}>
                 {pdfBusy?"Preparando PDF...":"Gerar e compartilhar PDF de teste"}
@@ -106,7 +110,7 @@ export function AndroidFieldDemo() {
         </div>}
         {selected.status!=="concluida"&&<p className="hint">A assinatura de teste fica disponível após concluir a ocorrência demonstrativa.</p>}
         {message&&<p className="hint" role="status">{message}</p>}
-        <button className="secondary demo-reset" type="button" onClick={()=>{setSession(initialDemoState());setSignaturePreview(null);setPdfHash(null);setSimulateNoNetwork(false);setMessage("Simulação reiniciada.");}}>Reiniciar simulação</button>
+        <button className="secondary demo-reset" type="button" disabled={pdfBusy} onClick={()=>{setSession(initialDemoState());setSignaturePreview(null);setPdfHash(null);setSimulateNoNetwork(false);setMessage("Simulação reiniciada.");}}>Reiniciar simulação</button>
       </div>
     </div>
     <h3 className="demo-history-heading">Histórico demonstrativo (somente RAM)</h3>
