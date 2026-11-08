@@ -24,7 +24,8 @@ concurrency:
 jobs:
   debug-apk:
     name: Capacitor Android / debug APK
-    runs-on: ubuntu-latest
+    # Stable Android runner while ubuntu-latest migrates to 26.04.
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
@@ -67,16 +68,20 @@ jobs:
       - name: Build Android debug package
         working-directory: android
         run: |
-          # The Capacitor template selects the 214 MB Gradle "all" archive,
-          # currently redirected to a GitHub release returning HTTP 504 in CI.
-          # The official runtime-only "bin" archive is smaller and avoids the
-          # GitHub release redirect. Preserve the Gradle version (8.14.3).
+          # The Capacitor template selects the 214 MB Gradle "all" archive.
+          # The official 131 MB runtime-only "bin" archive is preferable in CI.
+          # Both URLs may redirect to GitHub release infrastructure, which has
+          # intermittently returned HTTP 504. Use bounded wrapper retries and
+          # a pinned Gradle version rather than skipping Android validation.
           WRAPPER=gradle/wrapper/gradle-wrapper.properties
           grep -q 'gradle-8.14.3-all.zip' "$WRAPPER" || {
             echo "Unexpected Gradle version: review wrapper before overriding"; exit 1;
           }
           sed -i 's#services.gradle.org/distributions/gradle-8.14.3-all.zip#downloads.gradle.org/distributions/gradle-8.14.3-bin.zip#' "$WRAPPER"
           grep -q 'downloads.gradle.org/distributions/gradle-8.14.3-bin.zip' "$WRAPPER"
+          # Gradle 8.14.3 wrapper supports bounded retry/backoff for transient
+          # release-CDN failures; no switching to unverified mirror builds.
+          printf '\nretries=5\nretryBackOffMs=1500\nnetworkTimeout=120000\n' >> "$WRAPPER"
           chmod +x gradlew
           ./gradlew --no-daemon --stacktrace assembleDebug
       - name: Upload debug APK (not approved for operations)
