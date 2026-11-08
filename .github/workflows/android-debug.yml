@@ -93,14 +93,16 @@ jobs:
             echo "Gradle wrapper unavailable: trying official pinned-version container."
             printf 'sdk.dir=/sdk\\n' > local.properties
             mkdir -p .gradle-ci .android-ci
+            # Mount the whole repo, not only android/: Capacitor Gradle projects
+            # resolve local plugins from ../node_modules during variant selection.
             docker run --rm --platform linux/amd64 \
               --user "$(id -u):$(id -g)" \
-              -v "$PWD:/workspace" \
+              -v "$(dirname "$PWD"):/workspace" \
               -v "$ANDROID_HOME:/sdk" \
               -e ANDROID_HOME=/sdk -e ANDROID_SDK_ROOT=/sdk \
-              -e GRADLE_USER_HOME=/workspace/.gradle-ci \
-              -e HOME=/workspace -e ANDROID_USER_HOME=/workspace/.android-ci \
-              -w /workspace \
+              -e GRADLE_USER_HOME=/workspace/android/.gradle-ci \
+              -e HOME=/workspace/android -e ANDROID_USER_HOME=/workspace/android/.android-ci \
+              -w /workspace/android \
               gradle:8.14.3-jdk21 \
               gradle --no-daemon --stacktrace assembleDebug
           fi
