@@ -67,6 +67,16 @@ jobs:
       - name: Build Android debug package
         working-directory: android
         run: |
+          # The Capacitor template selects the 214 MB Gradle "all" archive,
+          # currently redirected to a GitHub release returning HTTP 504 in CI.
+          # The official runtime-only "bin" archive is smaller and avoids the
+          # GitHub release redirect. Preserve the Gradle version (8.14.3).
+          WRAPPER=gradle/wrapper/gradle-wrapper.properties
+          grep -q 'gradle-8.14.3-all.zip' "$WRAPPER" || {
+            echo "Unexpected Gradle version: review wrapper before overriding"; exit 1;
+          }
+          sed -i 's#services.gradle.org/distributions/gradle-8.14.3-all.zip#downloads.gradle.org/distributions/gradle-8.14.3-bin.zip#' "$WRAPPER"
+          grep -q 'downloads.gradle.org/distributions/gradle-8.14.3-bin.zip' "$WRAPPER"
           chmod +x gradlew
           ./gradlew --no-daemon --stacktrace assembleDebug
       - name: Upload debug APK (not approved for operations)
