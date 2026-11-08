@@ -160,7 +160,7 @@ function gpsIntegrity(v:number): boolean {
   const ages=[-1000,-1,0,1,500,9999,20000,29999,30000,30001,90000][(v>>>17)%11];
   const fix={latitude,longitude,accuracy,timestamp:now-ages};
   const expected=latitude>=-90 && latitude<=90 && longitude>=-180 && longitude<=180 &&
-    accuracy>=0 && accuracy<=500 && ages>=0 && ages<=30000;
+    accuracy>=0 && accuracy<=250 && ages>=0 && ages<=30000;
   return validLocation(fix,now)===expected;
 }
 
