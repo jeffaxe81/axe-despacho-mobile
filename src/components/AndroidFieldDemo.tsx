@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { useState } from "react";
+import { TouchSignaturePad } from "./TouchSignaturePad";
 import { statusLabels } from "../lib/contracts";
 import {
   applyDemoAction,initialDemoState,permittedDemoActions,selectDemo,
@@ -14,6 +15,7 @@ export function AndroidFieldDemo() {
   const [session,setSession]=useState(initialDemoState);
   const [simulateNoNetwork,setSimulateNoNetwork]=useState(false);
   const [message,setMessage]=useState("");
+  const [signaturePreview,setSignaturePreview]=useState<{incidentId:number;pngDataUrl:string;capturedAt:number}|null>(null);
   // The Android prototype is expressly offline/illustrative, never part of authenticated production UX.
   if(Capacitor.getPlatform()!=="android")return null;
   const selected=session.incidents.find(i=>i.id===session.selectedId)!;
@@ -23,6 +25,7 @@ export function AndroidFieldDemo() {
     if((action==="finish"||action==="decline") &&
       !window.confirm("Confirmar somente a simulação? Isso NÃO altera a central."))return;
     try {
+      setSignaturePreview(null);
       setSession(current=>applyDemoAction(current,selected.id,action));
       setMessage("Mudança simulada apenas na memória deste aparelho. Nenhum envio realizado.");
     } catch(error) {
@@ -38,7 +41,7 @@ export function AndroidFieldDemo() {
     {simulateNoNetwork&&<p className="notice warning">Modo simulado sem conexão: comandos bloqueados. Os exemplos continuam disponíveis apenas para leitura.</p>}
     <div className="demo-layout">
       <div className="demo-selector" role="group" aria-label="Ocorrências demonstrativas">
-        {session.incidents.map(i=><button className={"incident-card "+(selected.id===i.id?"selected":"")} type="button" key={i.id} onClick={()=>{setSession(current=>selectDemo(current,i.id));setMessage("");}}>
+        {session.incidents.map(i=><button className={"incident-card "+(selected.id===i.id?"selected":"")} type="button" key={i.id} onClick={()=>{setSession(current=>selectDemo(current,i.id));setSignaturePreview(null);setMessage("");}}>
           <span className="incident-heading"><strong>{i.code}</strong><span className="priority">{i.priority}</span></span>
           <span className="incident-category">{i.category}</span>
           <span className="incident-status">{statusLabels[i.status]}</span>
@@ -55,8 +58,26 @@ export function AndroidFieldDemo() {
           </button>)}
         </div>
         {actions.length===0&&<p className="hint">Este exemplo não possui novas transições disponíveis.</p>}
-        {message&&<p className="hint" role="status">{message}</p>}
-        <button className="secondary demo-reset" type="button" onClick={()=>{setSession(initialDemoState());setSimulateNoNetwork(false);setMessage("Simulação reiniciada.");}}>Reiniciar simulação</button>
+        {selected.status==="concluida"&&<div className="demo-signature-report">
+          <div className="section-head">
+            <h3>Documento de encerramento</h3><span className="pill">Fictício</span>
+          </div>
+          <p className="detail"><strong>Ocorrência:</strong> {selected.code}</p>
+          <p className="detail"><strong>Descrição:</strong> {selected.description}</p>
+          {signaturePreview?.incidentId===selected.id?
+            <div className="touch-signature-preview" aria-label="Assinatura demonstrativa confirmada">
+              <p className="hint">Assinatura capturada somente neste aparelho, nesta sessão.</p>
+              <img src={signaturePreview.pngDataUrl} alt="Traços manuscritos capturados na demonstração" />
+              <p className="hint">Capturada em {new Date(signaturePreview.capturedAt).toLocaleString("pt-BR")}. Sem envio, sem PDF assinado e sem certificação.</p>
+              <button type="button" className="secondary" onClick={()=>setSignaturePreview(null)}>Refazer assinatura</button>
+            </div>:
+            <TouchSignaturePad key={selected.id} code={selected.code}
+              onConfirm={value=>{setSignaturePreview({incidentId:selected.id,...value});setMessage("Assinatura demonstrativa capturada. Nenhuma informação foi enviada à central.");}}/>
+          }
+        </div>}
+        {selected.status!=="concluida"&&<p className="hint">A assinatura de teste fica disponível após concluir a ocorrência demonstrativa.</p>}
+        {message&&<p className="hint" role="status">{message}</p>
+        <button className="secondary demo-reset" type="button" onClick={()=>{setSession(initialDemoState());setSignaturePreview(null);setSimulateNoNetwork(false);setMessage("Simulação reiniciada.");}}>Reiniciar simulação</button>
       </div>
     </div>
     <h3 className="demo-history-heading">Histórico demonstrativo (somente RAM)</h3>
