@@ -30,7 +30,10 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "superjson": "^2.2.2",
-    "@capacitor/app": "8.1.2"
+    "@capacitor/app": "8.1.2",
+    "@capacitor/filesystem": "8.1.5",
+    "@capacitor/share": "8.0.3",
+    "pdf-lib": "1.17.1"
   },
   "devDependencies": {
     "@capacitor/cli": "8.6.0",

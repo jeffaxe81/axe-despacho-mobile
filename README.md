@@ -19,7 +19,7 @@ A documentação não publica uma API REST aberta nem habilita operações nativ
 No **Simulador de atendimento Android**, conclua uma ocorrência
 fictícia (ou abra DEMO-003) para usar a assinatura por toque no documento
 demonstrativo. Captura de dedo/caneta com prévia PNG somente em RAM,
-sem PDF final, sem servidor e sem valor de assinatura digital certificada.
+com geração e compartilhamento opcional de PDF fictício local (sem certificado, sem servidor e sem validade jurídica).
 Consulte [documentação da assinatura](docs/ASSINATURA_TOUCH_LAB.md).
 
 ## Objetivo
