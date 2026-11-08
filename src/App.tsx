@@ -419,11 +419,12 @@ export default function App() {
   const fieldProblem=loaded && user && !canField && Boolean(tenant && orgId);
 
   return <div className="app-shell">
+    <a className="skip-link" href="#main-content">Ir para o conteúdo principal</a>
     <header className="topbar">
       <div className="brand"><span className="brand-mark">AXE</span><span><strong>Despacho Mobile</strong><small>Agente de campo · Android / iOS</small></span></div>
-      <div className="header-actions"><span className={online?"net-online":"net-offline"}>{online?"Rede disponível":"Sem rede"}</span>{user&&<button className="link-button" onClick={()=>void signOut()} disabled={working}>Sair</button>}</div>
+      <div className="header-actions"><span role="status" aria-live="polite" className={online?"net-online":"net-offline"}>{online?"Rede disponível":"Sem rede"}</span>{user&&<button className="link-button" onClick={()=>void signOut()} disabled={working}>Sair</button>}</div>
     </header>
-    <main className="main">
+    <main className="main" id="main-content" tabIndex={-1}>
       <div className="hero"><div><span className="eyebrow">Operação em campo</span><h1>Despachos no seu dispositivo</h1><p>Receba ocorrências, atualize a equipe e compartilhe sua localização com a central quando autorizado.</p></div><span className="device-label">{native?"Aplicativo nativo":"Aplicativo web"}</span></div>
       {loaded&&(user||logoutPending||native)&&<p className={"operational-banner "+operationState.kind}
         role="status" aria-live="polite" aria-atomic="true">
@@ -490,7 +491,7 @@ export default function App() {
             onClick={()=>{setIncidentQuery("");setIncidentView("all");setSelectedId(null);}}>
             Limpar filtros
           </button>}
-          <div className="assignment-list">{visibleRows.map(({incident})=><button key={incident.id} type="button" className={"incident-card "+(selected?.incident.id===incident.id?"selected":"")} onClick={()=>{setSelectedId(incident.id);setNote("");}}>
+          <div className="assignment-list">{visibleRows.map(({incident})=><button key={incident.id} type="button" className={"incident-card "+(selected?.incident.id===incident.id?"selected":"")} aria-pressed={selected?.incident.id===incident.id} aria-label={`Abrir ocorrência ${incident.code}, prioridade ${incident.priority}, situação ${incident.status}`} onClick={()=>{setSelectedId(incident.id);setNote("");}}>
             <span className="incident-heading"><strong>{incident.code}</strong><span className="priority">{incident.priority}</span></span>
             <span className="incident-category">{incident.category}</span><span className="incident-status">{statusLabels[incident.status]}</span>
           </button>)}</div>
