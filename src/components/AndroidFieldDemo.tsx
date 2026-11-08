@@ -76,7 +76,7 @@ export function AndroidFieldDemo() {
           }
         </div>}
         {selected.status!=="concluida"&&<p className="hint">A assinatura de teste fica disponível após concluir a ocorrência demonstrativa.</p>}
-        {message&&<p className="hint" role="status">{message}</p>
+        {message&&<p className="hint" role="status">{message}</p>}
         <button className="secondary demo-reset" type="button" onClick={()=>{setSession(initialDemoState());setSignaturePreview(null);setSimulateNoNetwork(false);setMessage("Simulação reiniciada.");}}>Reiniciar simulação</button>
       </div>
     </div>
