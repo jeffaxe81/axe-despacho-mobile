@@ -72,7 +72,7 @@ function check(group:Group,x:number,i:number):boolean{
     const age=((x>>>5)%40_002)-1;
     fix.timestamp=now-age;
     const expected=Math.abs(fix.latitude)<=90 && Math.abs(fix.longitude)<=180 &&
-      fix.accuracy>=0 && fix.accuracy<=500 && age>=0 && age<=30_000;
+      fix.accuracy>=0 && fix.accuracy<=250 && age>=0 && age<=30_000;
     return validLocation(fix,now)===expected;
   }
   case "gps_antireplay": {
