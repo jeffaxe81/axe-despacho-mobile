@@ -67,9 +67,19 @@ async function rpc<T>(method:"GET"|"POST",path:string,input?:unknown,organizatio
         response.status === 401 || response.status === 403 ? String(response.status) : "INVALID_RESPONSE");
     }
     if(payload.error){
-      throw new ApiError(payload.error.json?.message ?? payload.error.message ?? "Falha na API.",
+      // Do not display server-supplied sensitive diagnostics, identity or
+      // tenant details for authentication/authorization/5xx failures.
+      const safeMessage = response.status === 401
+        ? "Sessão expirada ou não autenticada. Faça login novamente."
+        : response.status === 403
+          ? "Acesso não autorizado. Verifique seu perfil e organização ativa."
+          : response.status >= 500
+            ? "A central apresentou uma falha temporária. Tente novamente."
+            : payload.error.json?.message ?? payload.error.message ?? "Falha na API.";
+      throw new ApiError(safeMessage,
         response.status === 401 || response.status === 403
           ? String(response.status)
+          : response.status >= 500 ? "SERVER_ERROR"
           : payload.error.json?.data?.code ?? payload.error.data?.code ?? "RPC_ERROR");
     }
     if(!response.ok||!payload.result||payload.result.data===undefined){

@@ -21,10 +21,16 @@ describe("AXED-F046 — conferência manual de snapshot com servidor",()=>{
     expect(()=>compareAgentOfflineAssignments([], [assignment(0,"aceita")])).toThrow(/inconsistente/);
     expect(()=>compareAgentOfflineAssignments(new Array(51).fill(assignment(1,"aceita")),[])).toThrow(/Limite/);
   });
-  it("diferenças nunca incluem endereço, descrição ou outras propriedades do objeto",()=>{
+  it("rejeita projeções com endereço/PII mesmo se o resultado não os exibiria",()=>{
     const full={...assignment(1,"aceita"),address:"DADO NÃO AUTORIZADO",description:"PRIVADO"};
-    const result=compareAgentOfflineAssignments([full],[assignment(1,"pausada")]);
-    expect(JSON.stringify(result)).not.toContain("PRIVADO");
-    expect(JSON.stringify(result)).not.toContain("DADO NÃO AUTORIZADO");
+    expect(()=>compareAgentOfflineAssignments([full],[assignment(1,"pausada")])).toThrow(/inconsistente/);
+  });
+  it.each([
+    {status:"__not_a_real_status__"},
+    {code:"OCO-1\nCONTACT: SECRET"},
+    {code:"/" },
+    {category:"x\u0000y"},
+  ])("rejeita resumo com campos fora do contrato: %j",patch=>{
+    expect(()=>compareAgentOfflineAssignments([{...assignment(1,"aceita"),...patch}],[])).toThrow(/inconsistente/);
   });
 });

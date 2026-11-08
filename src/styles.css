@@ -65,3 +65,13 @@
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition-duration:0.01ms!important;animation-duration:0.01ms!important}
 }
+
+/* Front 10: essential mobile controls keep a 44px touch target even when their
+ * labels are short. Reflow inside narrow viewports; never force sideways scroll. */
+.link-button,.filter-reset,.help-trail-button,.demo-reset{min-height:44px}
+.help-details>.help-summary{min-height:44px}
+@media(max-width:375px){
+  .header-actions{flex-wrap:wrap;justify-content:flex-end;min-width:0}
+  .topbar{flex-wrap:wrap}
+  .link-button{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+}

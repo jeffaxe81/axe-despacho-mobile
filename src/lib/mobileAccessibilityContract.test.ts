@@ -28,6 +28,14 @@ describe("Mobile field accessible controls and status",()=>{
     expect(css).toContain(".operational-banner.blocked");
   });
 
+  it("retains 44px touch targets and narrow phone header reflow",()=>{
+    expect(css).toContain(".link-button,.filter-reset,.help-trail-button,.demo-reset{min-height:44px}");
+    expect(css).toContain(".help-details>.help-summary{min-height:44px}");
+    expect(css).toContain("@media(max-width:375px)");
+    expect(css).toContain(".topbar{flex-wrap:wrap}");
+    expect(css).toContain("overflow-wrap:anywhere");
+  });
+
   it("respects reduced motion and keyboard visibility",()=>{
     expect(css).toContain("@media(prefers-reduced-motion:reduce)");
     expect(css).toContain(":focus-visible");

@@ -17,7 +17,8 @@ function validId(v: unknown): v is number {
 function validScope(scope: AgentOfflineScope) {
   return validId(scope.userId) && validId(scope.organizationId) && validId(scope.teamId);
 }
-function validAssignment(value: unknown): value is AgentOfflineAssignment {
+/** Single canonical validator shared by offline persistence and reconciliation. */
+export function isSafeOfflineAssignment(value: unknown): value is AgentOfflineAssignment {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const v = value as Record<string, unknown>;
   // A cached response with extra fields could expose personal data even if
@@ -69,7 +70,7 @@ function read<T>(storage: StoragePort, key: string, scope: AgentOfflineScope, va
   }
 }
 function validList(value: unknown): value is AgentOfflineAssignment[] {
-  if (!Array.isArray(value) || value.length > MAX_SNAPSHOT || !value.every(validAssignment)) return false;
+  if (!Array.isArray(value) || value.length > MAX_SNAPSHOT || !value.every(isSafeOfflineAssignment)) return false;
   // Duplicated incident IDs can make a stale/offline summary appear to contain
   // more authorized assignments than the server returned.
   return new Set(value.map(item => item.id)).size === value.length;
