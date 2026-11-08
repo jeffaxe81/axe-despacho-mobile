@@ -49,10 +49,18 @@ function read<T>(storage: StoragePort, key: string, scope: AgentOfflineScope, va
     const value: unknown = JSON.parse(raw);
     if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Cache inválido.");
     const e = value as Partial<Envelope<unknown>>;
-    if (e.version !== 1 || !e.scope || !validScope(e.scope) ||
+    // Reject extra envelope/scope keys that could smuggle personal data into
+    // persistent device storage even if the visible payload is redacted.
+    if (Object.keys(value).sort().join(",") !== "createdAt,expiresAt,payload,scope,version" ||
+      !e.scope || typeof e.scope !== "object" || Array.isArray(e.scope) ||
+      Object.keys(e.scope).sort().join(",") !== "organizationId,teamId,userId" ||
+      e.version !== 1 || !validScope(e.scope) ||
       e.scope.userId !== scope.userId || e.scope.organizationId !== scope.organizationId || e.scope.teamId !== scope.teamId ||
       typeof e.createdAt !== "number" || typeof e.expiresAt !== "number" ||
-      !Number.isFinite(now) || e.createdAt > now || e.expiresAt !== e.createdAt + AGENT_OFFLINE_TTL_MS ||
+      !Number.isSafeInteger(e.createdAt) || e.createdAt < 0 ||
+      !Number.isSafeInteger(e.expiresAt) || e.expiresAt < 0 ||
+      !Number.isSafeInteger(now) || now < 0 || e.createdAt > now ||
+      e.expiresAt !== e.createdAt + AGENT_OFFLINE_TTL_MS ||
       now >= e.expiresAt || !validator(e.payload)) throw new Error("Cache expirado ou não autorizado.");
     return e as Envelope<T>;
   } catch {
