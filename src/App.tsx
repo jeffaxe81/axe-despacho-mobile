@@ -20,6 +20,7 @@ import { ApiError } from "./lib/api";
 import { isAccessRevoked } from "./lib/sessionAccess";
 import { SessionEpoch } from "./lib/sessionEpoch";
 import { FIELD_REFRESH_INTERVAL_MS,isFieldSnapshotFresh,shouldQueryLiveAssignments,timeSinceVerification } from "./lib/clientFreshness";
+import {fieldOperationalState} from "./lib/fieldOperationalState";
 
 function errorText(cause:unknown):string {
   return cause instanceof Error ? cause.message : "Operação indisponível. Verifique sua conexão.";
@@ -82,6 +83,10 @@ export default function App() {
     visibleRows.find(r=>r.incident.status==="despachada") ?? visibleRows[0];
   const recentlyVerified=isFieldSnapshotFresh(lastVerifiedAt,clock);
   const controlsEnabled=Boolean(!native && !logoutPending && canField && online && foreground && recentlyVerified && !mustValidate && !working && !conflict);
+  const operationState=fieldOperationalState({
+    native,logoutPending,online,foreground,authorized:canField,
+    conflict,needsValidation:mustValidate,snapshotFresh:recentlyVerified,working
+  });
   const canSendGPS=Boolean(controlsEnabled && activeCount===1 && active.length===1 && sharing);
   const scope:AgentOfflineScope|null=useMemo(()=>{
     if (!user?.teamId || !orgId || !user.active) return null;
@@ -420,6 +425,10 @@ export default function App() {
     </header>
     <main className="main">
       <div className="hero"><div><span className="eyebrow">Operação em campo</span><h1>Despachos no seu dispositivo</h1><p>Receba ocorrências, atualize a equipe e compartilhe sua localização com a central quando autorizado.</p></div><span className="device-label">{native?"Aplicativo nativo":"Aplicativo web"}</span></div>
+      {loaded&&(user||logoutPending||native)&&<p className={"operational-banner "+operationState.kind}
+        role="status" aria-live="polite" aria-atomic="true">
+        <strong>Situação operacional</strong> <span>{operationState.message}</span>
+      </p>}
       <HelpCenter environment={native?"android":"web"} />
       {!online&&<p className="notice warning" role="alert">Sem rede. Nenhuma alteração de status ou transmissão de GPS será iniciada. O resumo temporário só pode ser consultado após autenticação válida.</p>}
       {native&&<p className="notice warning" role="status">Prévia Android de homologação: a interface nativa está disponível, porém o login operacional e o GPS em segundo plano ainda exigem integração segura na central. Nenhuma senha será solicitada nesta versão nativa.</p>}
