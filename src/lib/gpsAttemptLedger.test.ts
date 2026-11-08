@@ -28,7 +28,7 @@ describe("GPS: no replay after reconnect, app pause, or consent toggle",()=>{
     const ledger=new GpsAttemptLedger();
     expect(ledger.beginAttempt(0,9,fix(100_000),100_000)).toBe(false);
     expect(ledger.beginAttempt(1,NaN,fix(100_000),100_000)).toBe(false);
-    expect(ledger.beginAttempt(1,9,{...fix(100_000),accuracy:501},100_000)).toBe(false);
+    expect(ledger.beginAttempt(1,9,{...fix(100_000),accuracy:251},100_000)).toBe(false);
     expect(ledger.beginAttempt(1,9,fix(100_000),100_000)).toBe(true);
     expect(ledger.beginAttempt(1,9,fix(100_000),120_000)).toBe(false);
   });
