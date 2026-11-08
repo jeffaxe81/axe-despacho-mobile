@@ -189,12 +189,12 @@ describe("Homologation D: 200 identity epochs, logout and async race cases",()=>
 
 const gpsProfiles=[
   {lat:-27.6,long:-48.6,accuracy:20},
-  {lat:90,long:180,accuracy:500},
+  {lat:90,long:180,accuracy:250},
   {lat:0,long:0,accuracy:0},
   {lat:-90,long:-180,accuracy:0},
   {lat:90.001,long:0,accuracy:10},
   {lat:0,long:-180.001,accuracy:10},
-  {lat:0,long:0,accuracy:500.001},
+  {lat:0,long:0,accuracy:250.001},
   {lat:0,long:0,accuracy:-1},
   {lat:Number.NaN,long:0,accuracy:10},
   {lat:0,long:Number.POSITIVE_INFINITY,accuracy:10},
