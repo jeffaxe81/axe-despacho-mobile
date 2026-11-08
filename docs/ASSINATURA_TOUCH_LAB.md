@@ -56,3 +56,45 @@ As funções puras em `src/lib/touchSignature.ts` têm testes de
 normalização de coordenadas, limite de memória, rejeição de cliques
 acidentais e aceite de traçado suficiente. A CI verifica tipagem,
 suite e build da aplicação.
+
+## Etapa seguinte — PDF demonstrativo local (08/11/2026)
+
+Depois de capturar o dedo no Android, o usuário pode tocar em
+**Gerar e compartilhar PDF de teste**. É criado um PDF de uma página
+contendo os dados da ocorrência fictícia, desenho capturado, horário
+da captura, marcador "DEMONSTRAÇÃO — SEM VALIDADE JURÍDICA",
+SHA-256 dos dados de origem (incluindo bytes da imagem).
+O hash SHA-256 do PDF final é exibido separadamente no aplicativo,
+porque incluir o próprio hash no PDF criaria uma referência circular.
+
+A geração usa `pdf-lib` local. Em Android Capacitor o PDF passa por
+`Directory.Cache` temporariamente para abrir a folha nativa
+de compartilhamento, usando `@capacitor/filesystem` e
+`@capacitor/share`. Ao retornar, o app solicita a exclusão do arquivo
+temporário, mesmo quando o compartilhamento falha. Caso a exclusão
+falhe, o aplicativo informa o problema. **O sistema de destino
+escolhido pelo usuário pode manter uma cópia**. No navegador, o PDF
+é baixado via URL de objeto temporário.
+
+- Não há `fetch`, upload, backend, `localStorage`, IndexedDB, fila
+  nem conexão com `axesistemas-signature-service`.
+- Apenas códigos `DEMO-...` e ocorrências fictícias concluídas.
+- Não existe identidade de signatário autenticada, carimbo do tempo
+  confiável, PDF criptograficamente assinado ou consentimento jurídico.
+- O hash é uma impressão digital para comparação, não uma assinatura
+  digital nem prova de autoria.
+- Não usar PDF demonstrativo em despachos reais.
+
+### Contrato futuro e portões de produção
+
+Para evolução real, o serviço de assinatura separado precisará receber
+requisição autenticada (escopo de equipe/tenant validado no servidor)
+com ID da ocorrência e versão do relatório, hash SHA-256 **gerado pelo
+servidor**, identidade e consentimento do signatário, e referência ao
+provedor de confiança aprovado. O backend deve salvar um artefato
+imutável e auditável, deduplicar reenvios e verificar se a ocorrência
+ainda admite assinatura. O cliente não tem autoridade para definir
+tenant, identidade, hash oficial ou estado da ocorrência. Nenhum desses
+endpoints foi habilitado nesta etapa.
+
+Validar em aparelho físico e com assinantes de teste antes de avançar.

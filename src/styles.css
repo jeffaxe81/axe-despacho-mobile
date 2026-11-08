@@ -99,3 +99,5 @@
 .touch-signature-preview button{min-height:44px}
 .touch-signature-document .toggle{align-items:flex-start}
 @media(max-width:420px){.demo-signature-report{padding:11px}.touch-signature-document .button-grid{grid-template-columns:1fr}}
+
+.demo-pdf-hash{display:block;max-width:100%;overflow-wrap:anywhere;word-break:break-all;margin-top:6px;font-size:11px}

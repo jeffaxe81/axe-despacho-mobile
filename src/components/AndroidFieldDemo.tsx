@@ -1,6 +1,8 @@
 import { Capacitor } from "@capacitor/core";
 import { useState } from "react";
 import { TouchSignaturePad } from "./TouchSignaturePad";
+import { createDemoDispatchPdf } from "../lib/demoSignaturePdf";
+import { deliverDemoPdf } from "../lib/demoPdfDelivery";
 import { statusLabels } from "../lib/contracts";
 import {
   applyDemoAction,initialDemoState,permittedDemoActions,selectDemo,
@@ -15,21 +17,42 @@ export function AndroidFieldDemo() {
   const [session,setSession]=useState(initialDemoState);
   const [simulateNoNetwork,setSimulateNoNetwork]=useState(false);
   const [message,setMessage]=useState("");
+  const [pdfBusy,setPdfBusy]=useState(false);
+  const [pdfHash,setPdfHash]=useState<{incidentId:number;value:string}|null>(null);
   const [signaturePreview,setSignaturePreview]=useState<{incidentId:number;pngDataUrl:string;capturedAt:number}|null>(null);
   // The Android prototype is expressly offline/illustrative, never part of authenticated production UX.
   if(Capacitor.getPlatform()!=="android")return null;
   const selected=session.incidents.find(i=>i.id===session.selectedId)!;
   const actions=permittedDemoActions(selected.status);
   function act(action:DemoAction) {
-    if(simulateNoNetwork)return;
+    if(simulateNoNetwork || pdfBusy)return;
     if((action==="finish"||action==="decline") &&
       !window.confirm("Confirmar somente a simulação? Isso NÃO altera a central."))return;
     try {
       setSignaturePreview(null);
+      setPdfHash(null);
       setSession(current=>applyDemoAction(current,selected.id,action));
       setMessage("Mudança simulada apenas na memória deste aparelho. Nenhum envio realizado.");
     } catch(error) {
       setMessage(error instanceof Error?error.message:"Falha no exercício.");
+    }
+  }
+  async function exportReport() {
+    if (pdfBusy || !signaturePreview || signaturePreview.incidentId!==selected.id || selected.status!=="concluida") return;
+    setPdfBusy(true); setMessage("");
+    try {
+      const result = await createDemoDispatchPdf({
+        incident: {...selected},
+        pngDataUrl: signaturePreview.pngDataUrl,
+        capturedAt: signaturePreview.capturedAt,
+      });
+      await deliverDemoPdf(result);
+      setPdfHash({incidentId:selected.id,value:result.pdfSha256});
+      setMessage("PDF fictício preparado. SHA-256 disponível abaixo. Nenhum dado foi enviado à central.");
+    } catch {
+      setMessage("Não foi possível gerar ou compartilhar o PDF de teste. Nenhuma ocorrência foi alterada.");
+    } finally {
+      setPdfBusy(false);
     }
   }
   return <section className="panel android-demo" aria-label="Demonstração Android de despacho">
@@ -41,7 +64,7 @@ export function AndroidFieldDemo() {
     {simulateNoNetwork&&<p className="notice warning">Modo simulado sem conexão: comandos bloqueados. Os exemplos continuam disponíveis apenas para leitura.</p>}
     <div className="demo-layout">
       <div className="demo-selector" role="group" aria-label="Ocorrências demonstrativas">
-        {session.incidents.map(i=><button className={"incident-card "+(selected.id===i.id?"selected":"")} type="button" key={i.id} onClick={()=>{setSession(current=>selectDemo(current,i.id));setSignaturePreview(null);setMessage("");}}>
+        {session.incidents.map(i=><button className={"incident-card "+(selected.id===i.id?"selected":"")} type="button" key={i.id} onClick={()=>{setSession(current=>selectDemo(current,i.id));setSignaturePreview(null);setPdfHash(null);setMessage("");}}>
           <span className="incident-heading"><strong>{i.code}</strong><span className="priority">{i.priority}</span></span>
           <span className="incident-category">{i.category}</span>
           <span className="incident-status">{statusLabels[i.status]}</span>
@@ -69,7 +92,13 @@ export function AndroidFieldDemo() {
               <p className="hint">Assinatura capturada somente neste aparelho, nesta sessão.</p>
               <img src={signaturePreview.pngDataUrl} alt="Traços manuscritos capturados na demonstração" />
               <p className="hint">Capturada em {new Date(signaturePreview.capturedAt).toLocaleString("pt-BR")}. Sem envio, sem PDF assinado e sem certificação.</p>
-              <button type="button" className="secondary" onClick={()=>setSignaturePreview(null)}>Refazer assinatura</button>
+              <button type="button" className="secondary" disabled={pdfBusy} onClick={()=>{setSignaturePreview(null);setPdfHash(null);}}>Refazer assinatura</button>
+              <button type="button" className="primary" disabled={pdfBusy} onClick={()=>void exportReport()}>
+                {pdfBusy?"Preparando PDF...":"Gerar e compartilhar PDF de teste"}
+              </button>
+              {pdfHash?.incidentId===selected.id&&<p className="hint" role="status">
+                SHA-256 do último PDF gerado: <code className="demo-pdf-hash">{pdfHash.value}</code>
+              </p>}
             </div>:
             <TouchSignaturePad key={selected.id} code={selected.code}
               onConfirm={value=>{setSignaturePreview({incidentId:selected.id,...value});setMessage("Assinatura demonstrativa capturada. Nenhuma informação foi enviada à central.");}}/>
@@ -77,7 +106,7 @@ export function AndroidFieldDemo() {
         </div>}
         {selected.status!=="concluida"&&<p className="hint">A assinatura de teste fica disponível após concluir a ocorrência demonstrativa.</p>}
         {message&&<p className="hint" role="status">{message}</p>}
-        <button className="secondary demo-reset" type="button" onClick={()=>{setSession(initialDemoState());setSignaturePreview(null);setSimulateNoNetwork(false);setMessage("Simulação reiniciada.");}}>Reiniciar simulação</button>
+        <button className="secondary demo-reset" type="button" onClick={()=>{setSession(initialDemoState());setSignaturePreview(null);setPdfHash(null);setSimulateNoNetwork(false);setMessage("Simulação reiniciada.");}}>Reiniciar simulação</button>
       </div>
     </div>
     <h3 className="demo-history-heading">Histórico demonstrativo (somente RAM)</h3>
