@@ -1,4 +1,4 @@
-import type { AgentOfflineAssignment } from "./agentOffline";
+import { isSafeOfflineAssignment, type AgentOfflineAssignment } from "./agentOffline";
 
 export type AgentAssignmentDifference = {
   id: number;
@@ -27,7 +27,7 @@ export function compareAgentOfflineAssignments(
     if (items.length > 50) throw new Error("Limite do resumo excedido.");
     const mapped = new Map<number, AgentOfflineAssignment>();
     for (const item of items) {
-      if (!Number.isSafeInteger(item.id) || item.id <= 0 || !item.code || !item.status || mapped.has(item.id))
+      if (!isSafeOfflineAssignment(item) || mapped.has(item.id))
         throw new Error("Resumo de atribuições inconsistente.");
       mapped.set(item.id, item);
     }
