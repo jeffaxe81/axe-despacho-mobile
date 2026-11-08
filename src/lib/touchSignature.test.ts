@@ -6,7 +6,7 @@ import {
 
 describe("touch-signature geometry — laboratory only", () => {
   it("normalizes Android touch positions for responsive width", () => {
-    expect(canvasSignaturePoint(200, 80, {left: 50,top: 30,width: 300,height: 110}))
+    expect(canvasSignaturePoint(200, 85, {left: 50,top: 30,width: 300,height: 110}))
       .toEqual({x: SIGNATURE_WIDTH/2,y: SIGNATURE_HEIGHT/2});
   });
   it("clamps touches to the drawing area", () => {
