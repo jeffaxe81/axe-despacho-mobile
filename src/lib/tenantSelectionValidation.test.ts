@@ -10,6 +10,14 @@ const multiple={organizations:[orgA,orgB],activeOrganizationId:null,requiresSele
 afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks();});
 describe("tenant.selection — consumer-driven authorization DTO",()=>{
   it.each([
+    ["unexpected token", {...multiple,accessToken:"SECRET"}],
+    ["organization extra secret",{...multiple,organizations:[{...orgA,privateKey:"SECRET"},orgB]}],
+    ["duplicate codes",{...multiple,organizations:[orgA,{...orgB,code:orgA.code}]}],
+  ])("refuses unknown/ambiguous selection: %s",(_name,value)=>{
+    expect(isValidTenantSelection(value)).toBe(false);
+  });
+
+  it.each([
     ["zero orgs",{organizations:[],activeOrganizationId:null,requiresSelection:false}],
     ["one active org",{organizations:[orgA],activeOrganizationId:2,requiresSelection:false}],
     ["two requiring selection",multiple],
