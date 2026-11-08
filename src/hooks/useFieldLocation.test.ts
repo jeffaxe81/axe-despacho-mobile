@@ -30,7 +30,7 @@ describe("GPS de campo - cadência e coordenada",()=>{
     expect(validLocation(point,100_100)).toBe(true);
     expect(validLocation({...point,latitude:100},100_100)).toBe(false);
     expect(validLocation({...point,longitude:NaN},100_100)).toBe(false);
-    expect(validLocation({...point,accuracy:501},100_100)).toBe(false);
+    expect(validLocation({...point,accuracy:251},100_100)).toBe(false);
     expect(validLocation(point,130_001)).toBe(false);
     expect(validLocation(point,90_000)).toBe(false);
   });

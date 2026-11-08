@@ -108,7 +108,7 @@ const attemptDelay: Array<number | null> = [
 ];
 const gpsExamples = [
   { age: 0, accuracy: 10, lat: -27.0, long: -48.0, valid: true },
-  { age: 1, accuracy: 500, lat: 0, long: 0, valid: true },
+  { age: 1, accuracy: 250, lat: 0, long: 0, valid: true },
   { age: 9_999, accuracy: 20, lat: 90, long: -180, valid: true },
   { age: 10_000, accuracy: 15, lat: 15, long: 30, valid: false }, // same sample
   { age: 10_001, accuracy: 15, lat: 15, long: 30, valid: false }, // older sample

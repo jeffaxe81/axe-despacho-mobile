@@ -75,3 +75,14 @@
   .topbar{flex-wrap:wrap}
   .link-button{max-width:100%;white-space:normal;overflow-wrap:anywhere}
 }
+
+/* Quality-only guidance. No map coordinates or persistent user tracking. */
+.gps-quality-assistant{border:1px solid #c9dfe4;border-radius:12px;padding:12px 14px;background:#f7fafb;margin:8px 0 12px;min-width:0;color:#1a4150}
+.gps-quality-heading{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px}
+.gps-quality-heading strong{font-size:13px}
+.gps-quality-mode{font-size:11px;color:#526e7a;background:#e7f1f4;border-radius:999px;padding:4px 10px}
+.gps-quality-stats{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;font-size:12px;line-height:1.5}
+.gps-quality-stats b{font-variant-numeric:tabular-nums}
+.gps-quality-advice{margin:9px 0 0;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.gps-quality-footnote{margin:8px 0 0;font-size:11px;color:#536c78;line-height:1.55}
+@media(max-width:420px){.gps-quality-assistant{padding:11px}.gps-quality-stats{flex-direction:column;gap:3px}}
