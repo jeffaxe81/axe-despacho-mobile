@@ -21,17 +21,22 @@ const id=(value:unknown):value is number=>
  * authorization and must independently validate the x-organization-id header.
  */
 export function isValidTenantSelection(value:unknown):value is TenantSelection{
-  if(!record(value)||!Array.isArray(value.organizations)||
+  if(!record(value)||Object.keys(value).sort().join(",")!=="activeOrganizationId,organizations,requiresSelection"||
+     !Array.isArray(value.organizations)||
      value.organizations.length>MAX_ORGANIZATIONS||
      (value.activeOrganizationId!==null&&!id(value.activeOrganizationId))||
      typeof value.requiresSelection!=="boolean")return false;
   const seen=new Set<number>();
+  const codes=new Set<string>();
   for(const organization of value.organizations){
-    if(!record(organization)||!id(organization.id)||
+    if(!record(organization)||
+       Object.keys(organization).sort().join(",")!=="code,id,name"||
+       !id(organization.id)||
        !validLabel(organization.code,MAX_ORG_CODE)||
        !validLabel(organization.name,MAX_ORG_NAME)||
-       seen.has(organization.id))return false;
+       seen.has(organization.id)||codes.has(organization.code))return false;
     seen.add(organization.id);
+    codes.add(organization.code);
   }
   if(value.activeOrganizationId!==null&&!seen.has(value.activeOrganizationId))return false;
   const expectedRequires=value.organizations.length>1 && value.activeOrganizationId===null;
