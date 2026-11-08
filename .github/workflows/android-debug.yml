@@ -83,7 +83,26 @@ jobs:
           # release-CDN failures; no switching to unverified mirror builds.
           printf '\nretries=5\nretryBackOffMs=1500\nnetworkTimeout=120000\n' >> "$WRAPPER"
           chmod +x gradlew
-          ./gradlew --no-daemon --stacktrace assembleDebug
+          if ./gradlew --no-daemon --stacktrace assembleDebug; then
+            echo "Android built through the verified 8.14.3 Gradle wrapper."
+          else
+            # The official Gradle distribution URLs have repeatedly returned
+            # HTTP 504 from GitHub's release CDN. Use the official pre-built
+            # Gradle 8.14.3 / JDK 21 container only as a CI fallback. Still
+            # compile the APK from this exact checked-out pull request.
+            echo "Gradle wrapper unavailable: trying official pinned-version container."
+            printf 'sdk.dir=/sdk\\n' > local.properties
+            mkdir -p .gradle-ci
+            docker run --rm --platform linux/amd64 \
+              --user "$(id -u):$(id -g)" \
+              -v "$PWD:/workspace" \
+              -v "$ANDROID_HOME:/sdk" \
+              -e ANDROID_HOME=/sdk -e ANDROID_SDK_ROOT=/sdk \
+              -e GRADLE_USER_HOME=/workspace/.gradle-ci \
+              -w /workspace \
+              gradle:8.14.3-jdk21 \
+              gradle --no-daemon --stacktrace assembleDebug
+          fi
       - name: Upload debug APK (not approved for operations)
         uses: actions/upload-artifact@v4
         with:
