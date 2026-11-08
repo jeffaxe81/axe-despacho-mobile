@@ -86,3 +86,16 @@
 .gps-quality-advice{margin:9px 0 0;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
 .gps-quality-footnote{margin:8px 0 0;font-size:11px;color:#536c78;line-height:1.55}
 @media(max-width:420px){.gps-quality-assistant{padding:11px}.gps-quality-stats{flex-direction:column;gap:3px}}
+
+/* Touch signing is a demonstration-only, offline Android field document. */
+.demo-signature-report{border:1px solid #d6e4eb;border-radius:12px;margin-top:16px;padding:14px;background:#f9fcfd;min-width:0}
+.demo-signature-report .section-head{flex-wrap:wrap}
+.touch-signature-document{margin-top:14px;border-top:1px solid #d5e5ea;padding-top:14px;min-width:0}
+.touch-signature-document .section-head{flex-wrap:wrap}
+.touch-signature-document h3{margin:0}
+.touch-signature-label{display:block;font-size:13px;font-weight:700;margin:10px 0 8px;color:#17465c}
+.touch-signature-canvas{display:block;width:100%;height:auto;max-width:100%;aspect-ratio:600/220;background:#fff;border:2px solid #9ab9c7;border-radius:12px;touch-action:none;cursor:crosshair}
+.touch-signature-preview img{max-width:100%;display:block;background:#fff;border:1px solid #b5ccd7;border-radius:8px;max-height:170px;object-fit:contain}
+.touch-signature-preview button{min-height:44px}
+.touch-signature-document .toggle{align-items:flex-start}
+@media(max-width:420px){.demo-signature-report{padding:11px}.touch-signature-document .button-grid{grid-template-columns:1fr}}
