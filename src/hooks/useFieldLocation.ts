@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { isAccessRevoked } from "../lib/sessionAccess";
 import { GpsAttemptLedger, isRecentLocationSample, validLocation } from "../lib/gpsAttemptLedger";
 import { assessGpsPrecision } from "../lib/gpsPrecision";
+import {appendGpsQualitySample,type GpsQualitySample} from "../lib/gpsQualityIntelligence";
 export { shouldTransmitLocation, validLocation, shouldAttemptFreshLocation } from "../lib/gpsAttemptLedger";
 
 type Args = { enabled:boolean; teamId:number|null|undefined; organizationId:number|null; onAccessRevoked?:()=>void };
@@ -13,6 +14,7 @@ export function useFieldLocation({enabled,teamId,organizationId,onAccessRevoked}
   // Quality only: never store or expose coordinates outside the guarded API call.
   const [accuracyMeters,setAccuracyMeters]=useState<number|null>(null);
   const [measuredAt,setMeasuredAt]=useState<number|null>(null);
+  const [qualityHistory,setQualityHistory]=useState<GpsQualitySample[]>([]);
   // Never persist positions, location permission or geolocation state.
   const requestRef=useRef(0);
   // Volatile across GPS toggle, reconnection and foreground effect restarts.
@@ -21,7 +23,7 @@ export function useFieldLocation({enabled,teamId,organizationId,onAccessRevoked}
     const generation=++requestRef.current;
     if (!enabled || !teamId || !organizationId) {
       setStatus("idle"); setMessage("");
-      setAccuracyMeters(null);setMeasuredAt(null);
+      setAccuracyMeters(null);setMeasuredAt(null);setQualityHistory([]);
       return;
     }
     let stopped=false;
@@ -29,7 +31,7 @@ export function useFieldLocation({enabled,teamId,organizationId,onAccessRevoked}
     let sending=false;
     setStatus("requesting");
     setMessage("Solicitando permissão de localização...");
-    setAccuracyMeters(null);setMeasuredAt(null);
+    setAccuracyMeters(null);setMeasuredAt(null);setQualityHistory([]);
     const stop=()=>stopped || requestRef.current!==generation;
     void Geolocation.watchPosition({ enableHighAccuracy:true, timeout:20_000, maximumAge:10_000 },(position,error)=>{
       if(stop()) return;
@@ -52,6 +54,10 @@ export function useFieldLocation({enabled,teamId,organizationId,onAccessRevoked}
         return;
       }
       const precision=assessGpsPrecision(point.accuracy);
+      // Store quality only in volatile memory, never the underlying coordinates.
+      setQualityHistory(previous=>appendGpsQualitySample(previous,{
+        accuracyMeters:point.accuracy,capturedAt:point.timestamp
+      },now));
       setAccuracyMeters(typeof point.accuracy==="number" && Number.isFinite(point.accuracy) && point.accuracy>=0
         ? point.accuracy : null);
       setMeasuredAt(point.timestamp);
@@ -100,5 +106,5 @@ export function useFieldLocation({enabled,teamId,organizationId,onAccessRevoked}
       setStatus("idle");
     };
   },[enabled,teamId,organizationId,onAccessRevoked]);
-  return {status,message,accuracyMeters,measuredAt};
+  return {status,message,accuracyMeters,measuredAt,qualityHistory};
 }
