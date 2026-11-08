@@ -46,3 +46,22 @@
 .assignment-filters input,.assignment-filters select{min-width:0;max-width:100%;height:44px;border:1px solid #c5d8df;border-radius:10px;padding:8px 10px;color:#16394d;background:#fff;font-size:13px}
 .filter-reset{margin:5px 0 2px;min-height:38px}
 @media(max-width:620px){.assignment-filters{grid-template-columns:1fr}.help-details>.help-summary{padding:14px}.help-content{padding:14px}.help-trail-body{padding:12px}.help-trail-button{width:100%;text-align:left}.help-summary small{font-size:11px}}
+
+/* Field-accessibility refinement: visible keyboard focus, touch targets and
+ * reduced-motion support without adding sticky overlays or horizontal scroll. */
+.skip-link{position:absolute;top:-120px;left:12px;z-index:1000;background:#fff;color:#084a64;
+  border:2px solid #087f77;border-radius:10px;padding:12px 16px;font-weight:700}
+.skip-link:focus-visible{position:fixed;top:12px}
+:where(button,input,select,textarea,a,summary):focus-visible{outline:3px solid #057e89;outline-offset:3px}
+.operational-banner{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;
+  padding:12px 16px;margin:12px 0;border-radius:12px;border:1px solid #cadce6;
+  background:#f3f8fa;color:#184454;font-size:13px;line-height:1.5}
+.operational-banner strong{font-weight:750;white-space:nowrap}
+.operational-banner.ready{background:#e8f7ee;border-color:#8cceb1;color:#174a30}
+.operational-banner.warning,.operational-banner.busy{background:#fff9e8;border-color:#e8c77d;color:#634a0a}
+.operational-banner.blocked{background:#fff0ec;border-color:#edb7aa;color:#76352a}
+.incident-card{min-height:44px}
+.assignment-list button:focus-visible{position:relative;z-index:1}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;transition-duration:0.01ms!important;animation-duration:0.01ms!important}
+}
