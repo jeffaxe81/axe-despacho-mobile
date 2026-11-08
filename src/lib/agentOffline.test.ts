@@ -97,3 +97,31 @@ describe("offline snapshots fail closed on unexpected fields and duplicates", ()
     expect(()=>saveLastAuthorizedAssignments(store,scope,[{...item,category:"A\nB"}],101)).toThrow();
   });
 });
+
+describe("offline cache retention and tamper-proof envelope",()=>{
+  const normal={version:1,scope,createdAt:1000,expiresAt:1000+AGENT_OFFLINE_TTL_MS,
+    payload:[{id:15,code:"OCO-15",category:"Atendimento",status:"aceita"}]};
+  const cases=[
+    ["additional GPS field",{...normal,latitude:-27.5}],
+    ["unexpected token",{...normal,token:"FORBIDDEN"}],
+    ["nested scope secret",{...normal,scope:{...scope,password:"FORBIDDEN"}}],
+    ["negative timestamp",{...normal,createdAt:-1,expiresAt:-1+AGENT_OFFLINE_TTL_MS}],
+    ["fractional timestamp",{...normal,createdAt:1000.5,expiresAt:1000.5+AGENT_OFFLINE_TTL_MS}],
+    ["oversized timestamp",{...normal,createdAt:Number.MAX_SAFE_INTEGER+1}],
+    ["unexpected version",{...normal,version:2}],
+  ] as const;
+  it.each(cases)("rejects %s and scrubs unauthorized data",(_label,payload)=>{
+    const s=memory();
+    const key=agentOfflineKey(scope,"list");
+    s.setItem(key,JSON.stringify(payload));
+    expect(loadLastAuthorizedAssignments(s,scope,1001)).toEqual([]);
+    expect(s.getItem(key)).toBeNull();
+  });
+  it("preserves valid redacted snapshot and exact expiry boundary",()=>{
+    const s=memory();
+    saveLastAuthorizedAssignments(s,scope,rows,2000);
+    expect(loadLastAuthorizedAssignments(s,scope,2001)).toHaveLength(1);
+    expect(loadLastAuthorizedAssignments(s,scope,2000+AGENT_OFFLINE_TTL_MS-1)).toHaveLength(1);
+    expect(loadLastAuthorizedAssignments(s,scope,2000+AGENT_OFFLINE_TTL_MS)).toHaveLength(0);
+  });
+});
