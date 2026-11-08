@@ -7,8 +7,9 @@
  * Retain the attempted fix across effect restarts (network/foreground/toggle)
  * so the same capture is not automatically sent a second time.
  */
+import {assessGpsPrecision} from "./gpsPrecision";
+
 const INTERVAL_MS = 20_000;
-const MAX_ACCURACY_METERS = 500;
 const MAX_AGE_MS = 30_000;
 const MAX_SCOPES = 16;
 
@@ -25,13 +26,20 @@ export function shouldTransmitLocation(lastSentAt:number, now:number) {
     (lastSentAt===0 || (now>=lastSentAt && now-lastSentAt>=INTERVAL_MS));
 }
 
-export function validLocation(position:LocationFix, now:number) {
+/** Geometry and freshness gate; allows reporting poor-quality GPS to the UI
+ * without accidentally treating it as a position authorized for transmission.
+ */
+export function isRecentLocationSample(position:LocationFix, now:number):boolean {
   return Number.isFinite(now) && now>=0 &&
     Number.isFinite(position.latitude) && Math.abs(position.latitude)<=90 &&
     Number.isFinite(position.longitude) && Math.abs(position.longitude)<=180 &&
-    Number.isFinite(position.accuracy) && position.accuracy>=0 && position.accuracy<=MAX_ACCURACY_METERS &&
     Number.isFinite(position.timestamp) && position.timestamp>=0 &&
     position.timestamp<=now && now-position.timestamp<=MAX_AGE_MS;
+}
+
+export function validLocation(position:LocationFix, now:number):boolean {
+  return isRecentLocationSample(position,now) &&
+    assessGpsPrecision(position.accuracy).operational;
 }
 
 /** Minimum delay between attempts, not just successful uploads. */
